@@ -4,6 +4,10 @@
 
 Items koennen manuell eingelagert, beim Abbauen direkt ins Lager verschoben oder ueber einen konfigurierbaren Einsaug-Bereich automatisch aufgenommen werden. Gleichzeitig bleibt das System spielnah: Slots und Kapazitaet sind upgradbar, der Lager-Shulker muss gecraftet werden, und viele Funktionen werden direkt ueber Inventar-GUIs im Spiel bedient.
 
+## Kurzfassung
+
+`Storage` ist ein globales, GUI-gesteuertes Shulker-Lagersystem fuer Paper-Server. Es kombiniert Schnellzugriff, Sortierung, Suche, automatische Einlagerung, Auto-Nachfuellen, Einsaugen, EXP-Speicherung, Freigaben und Upgrades in einem einzigen Ingame-Workflow.
+
 ## Voraussetzungen
 
 - Paper 1.21.1 oder kompatible Version
@@ -354,7 +358,3 @@ storage.use
 
 - Standard: `true`
 - Erlaubt die Nutzung des Lager-Systems
-
-## Kurzfassung
-
-`Storage` ist ein globales, GUI-gesteuertes Shulker-Lagersystem fuer Paper-Server. Es kombiniert Schnellzugriff, Sortierung, Suche, automatische Einlagerung, Auto-Nachfuellen, Einsaugen, EXP-Speicherung, Freigaben und Upgrades in einem einzigen Ingame-Workflow.
