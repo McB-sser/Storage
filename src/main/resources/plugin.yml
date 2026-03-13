@@ -1,0 +1,11 @@
+name: Storage
+version: 1.0
+main: de.mcbesser.storage.Storage
+api-version: '1.20'
+authors: [mcbesser]
+description: Ein fortschrittliches Lager-System fÃƒÂ¼r Minecraft.
+permissions:
+  storage.use:
+    description: Erlaubt die Nutzung des Lager-Systems.
+    default: true
+

@@ -1,0 +1,15 @@
+storage:
+  mysql:
+    enabled: false
+    host: "127.0.0.1"
+    port: 3306
+    database: "storage"
+    username: "root"
+    password: "change_me"
+    use_ssl: false
+    # Deprecated: wird von modernen MySQL Connector/J Versionen nicht verlaesslich genutzt.
+    auto_reconnect: true
+    connect_timeout_ms: 5000
+    socket_timeout_ms: 15000
+    tcp_keep_alive: true
+
