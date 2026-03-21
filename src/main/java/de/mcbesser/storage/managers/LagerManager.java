@@ -7,6 +7,11 @@ import de.mcbesser.storage.Storage;
 import de.mcbesser.storage.models.PlayerLager;
 import de.mcbesser.storage.models.ShulkerSettings;
 import de.mcbesser.storage.models.StorageItem;
+import org.dizitart.no2.Nitrite;
+import org.dizitart.no2.collection.Document;
+import org.dizitart.no2.collection.NitriteCollection;
+import org.dizitart.no2.filters.FluentFilter;
+import org.dizitart.no2.mvstore.MVStoreModule;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
@@ -41,7 +46,11 @@ public class LagerManager {
     private final Map<UUID, ShulkerSettings> shulkerSettings = new HashMap<>();
 
     private boolean mysqlEnabled;
+    private boolean nitriteEnabled;
     private Connection mysqlConnection;
+    private Nitrite nitriteDb;
+    private NitriteCollection nitritePlayers;
+    private NitriteCollection nitriteShulkers;
 
     public LagerManager(Storage plugin) {
         this.plugin = plugin;
@@ -62,19 +71,26 @@ public class LagerManager {
     private void initStorage() {
         FileConfiguration cfg = plugin.getConfig();
         boolean enabled = cfg.getBoolean("storage.mysql.enabled", false);
-        if (!enabled) {
-            mysqlEnabled = false;
-            plugin.getLogger().info("Storage: JSON files");
+        if (enabled && connectMySql()) {
+            mysqlEnabled = true;
+            nitriteEnabled = false;
+            plugin.getLogger().info("Storage: MySQL");
             return;
         }
 
-        if (connectMySql()) {
-            mysqlEnabled = true;
-            plugin.getLogger().info("Storage: MySQL");
-        } else {
-            mysqlEnabled = false;
-            plugin.getLogger().warning("MySQL konnte nicht initialisiert werden, fallback auf JSON files.");
+        mysqlEnabled = false;
+        if (enabled) {
+            plugin.getLogger().warning("MySQL konnte nicht initialisiert werden, fallback auf Nitrite.");
         }
+
+        if (connectNitrite()) {
+            nitriteEnabled = true;
+            plugin.getLogger().info("Storage: Nitrite");
+            return;
+        }
+
+        nitriteEnabled = false;
+        plugin.getLogger().warning("Nitrite konnte nicht initialisiert werden, fallback auf JSON files.");
     }
 
     private boolean connectMySql() {
@@ -105,6 +121,26 @@ public class LagerManager {
             return true;
         } catch (ClassNotFoundException | SQLException e) {
             plugin.getLogger().log(Level.SEVERE, "MySQL Verbindungsfehler", e);
+            return false;
+        }
+    }
+
+    private boolean connectNitrite() {
+        try {
+            File nitriteFile = new File(plugin.getDataFolder(), "storage.db");
+            MVStoreModule storeModule = MVStoreModule.withConfig()
+                    .filePath(nitriteFile.getAbsolutePath())
+                    .build();
+
+            nitriteDb = Nitrite.builder()
+                    .loadModule(storeModule)
+                    .openOrCreate();
+            nitritePlayers = nitriteDb.getCollection("lager_players");
+            nitriteShulkers = nitriteDb.getCollection("lager_shulkers");
+            return true;
+        } catch (Exception e) {
+            plugin.getLogger().log(Level.SEVERE, "Nitrite Initialisierungsfehler", e);
+            closeNitrite();
             return false;
         }
     }
@@ -181,12 +217,36 @@ public class LagerManager {
         }
     }
 
+    private boolean ensureNitriteConnection() {
+        if (nitriteDb == null) {
+            return nitriteEnabled && connectNitrite();
+        }
+
+        try {
+            if (nitriteDb.isClosed()) {
+                if (!nitriteEnabled) {
+                    return false;
+                }
+                return connectNitrite();
+            }
+            return nitritePlayers != null && nitriteShulkers != null;
+        } catch (Exception e) {
+            if (!nitriteEnabled) {
+                plugin.getLogger().log(Level.SEVERE, "Nitrite nicht verfuegbar", e);
+                return false;
+            }
+            plugin.getLogger().log(Level.WARNING, "Nitrite ungueltig, Reconnect wird versucht", e);
+            closeNitrite();
+            return connectNitrite();
+        }
+    }
+
     public PlayerLager getLager(UUID playerUuid) {
         if (playerLagers.containsKey(playerUuid)) {
             return playerLagers.get(playerUuid);
         }
 
-        PlayerLager loaded = mysqlEnabled ? loadLagerMySql(playerUuid) : loadLagerJson(playerUuid);
+        PlayerLager loaded = mysqlEnabled ? loadLagerMySql(playerUuid) : loadLagerNitrite(playerUuid);
         if (loaded == null) {
             loaded = new PlayerLager(playerUuid);
         }
@@ -247,6 +307,31 @@ public class LagerManager {
         }
     }
 
+    private PlayerLager loadLagerNitrite(UUID playerUuid) {
+        if (!ensureNitriteConnection()) {
+            return loadLagerJson(playerUuid);
+        }
+
+        try {
+            Document document = nitritePlayers.find(FluentFilter.where("player_uuid").eq(playerUuid.toString()))
+                    .firstOrNull();
+            if (document != null) {
+                String json = document.get("json_data", String.class);
+                if (json != null && !json.isBlank()) {
+                    return gson.fromJson(json, PlayerLager.class);
+                }
+            }
+        } catch (Exception e) {
+            plugin.getLogger().log(Level.SEVERE, "Could not load lager from nitrite for " + playerUuid, e);
+        }
+
+        PlayerLager legacy = loadLagerJson(playerUuid);
+        if (legacy != null) {
+            saveLagerNitrite(playerUuid, legacy);
+        }
+        return legacy;
+    }
+
     public void saveLager(UUID playerUuid) {
         PlayerLager lager = playerLagers.get(playerUuid);
         if (lager == null) {
@@ -255,6 +340,8 @@ public class LagerManager {
 
         if (mysqlEnabled) {
             saveLagerMySql(playerUuid, lager);
+        } else if (nitriteEnabled) {
+            saveLagerNitrite(playerUuid, lager);
         } else {
             saveLagerJson(playerUuid, lager);
         }
@@ -276,6 +363,23 @@ public class LagerManager {
 
         if (!saveLagerMySqlStructured(playerUuid, lager)) {
             plugin.getLogger().severe("Could not save lager to mysql (structured) for " + playerUuid);
+        }
+    }
+
+    private void saveLagerNitrite(UUID playerUuid, PlayerLager lager) {
+        if (!ensureNitriteConnection()) {
+            saveLagerJson(playerUuid, lager);
+            return;
+        }
+
+        try {
+            nitritePlayers.remove(FluentFilter.where("player_uuid").eq(playerUuid.toString()));
+            Document document = Document.createDocument("player_uuid", playerUuid.toString())
+                    .put("json_data", gson.toJson(lager));
+            nitritePlayers.insert(document);
+        } catch (Exception e) {
+            plugin.getLogger().log(Level.SEVERE, "Could not save lager to nitrite for " + playerUuid, e);
+            saveLagerJson(playerUuid, lager);
         }
     }
 
@@ -426,7 +530,9 @@ public class LagerManager {
             return shulkerSettings.get(shulkerId);
         }
 
-        ShulkerSettings loaded = mysqlEnabled ? loadShulkerSettingsMySql(shulkerId) : loadShulkerSettingsJson(shulkerId);
+        ShulkerSettings loaded = mysqlEnabled
+                ? loadShulkerSettingsMySql(shulkerId)
+                : loadShulkerSettingsNitrite(shulkerId);
         if (loaded == null) {
             loaded = new ShulkerSettings(shulkerId);
         }
@@ -470,6 +576,31 @@ public class LagerManager {
         }
     }
 
+    private ShulkerSettings loadShulkerSettingsNitrite(UUID shulkerId) {
+        if (!ensureNitriteConnection()) {
+            return loadShulkerSettingsJson(shulkerId);
+        }
+
+        try {
+            Document document = nitriteShulkers.find(FluentFilter.where("shulker_uuid").eq(shulkerId.toString()))
+                    .firstOrNull();
+            if (document != null) {
+                String json = document.get("json_data", String.class);
+                if (json != null && !json.isBlank()) {
+                    return gson.fromJson(json, ShulkerSettings.class);
+                }
+            }
+        } catch (Exception e) {
+            plugin.getLogger().log(Level.SEVERE, "Could not load shulker settings from nitrite " + shulkerId, e);
+        }
+
+        ShulkerSettings legacy = loadShulkerSettingsJson(shulkerId);
+        if (legacy != null) {
+            saveShulkerSettingsNitrite(shulkerId, legacy);
+        }
+        return legacy;
+    }
+
     public void saveShulkerSettings(UUID shulkerId) {
         ShulkerSettings settings = shulkerSettings.get(shulkerId);
         if (settings == null) {
@@ -478,6 +609,8 @@ public class LagerManager {
 
         if (mysqlEnabled) {
             saveShulkerSettingsMySql(shulkerId, settings);
+        } else if (nitriteEnabled) {
+            saveShulkerSettingsNitrite(shulkerId, settings);
         } else {
             saveShulkerSettingsJson(shulkerId, settings);
         }
@@ -508,6 +641,23 @@ public class LagerManager {
         }
     }
 
+    private void saveShulkerSettingsNitrite(UUID shulkerId, ShulkerSettings settings) {
+        if (!ensureNitriteConnection()) {
+            saveShulkerSettingsJson(shulkerId, settings);
+            return;
+        }
+
+        try {
+            nitriteShulkers.remove(FluentFilter.where("shulker_uuid").eq(shulkerId.toString()));
+            Document document = Document.createDocument("shulker_uuid", shulkerId.toString())
+                    .put("json_data", gson.toJson(settings));
+            nitriteShulkers.insert(document);
+        } catch (Exception e) {
+            plugin.getLogger().log(Level.SEVERE, "Could not save shulker settings to nitrite " + shulkerId, e);
+            saveShulkerSettingsJson(shulkerId, settings);
+        }
+    }
+
     public void saveAllData() {
         for (UUID playerUuid : playerLagers.keySet()) {
             saveLager(playerUuid);
@@ -523,6 +673,21 @@ public class LagerManager {
                 mysqlConnection.close();
             } catch (SQLException e) {
                 plugin.getLogger().log(Level.WARNING, "Could not close mysql connection", e);
+            }
+        }
+        closeNitrite();
+    }
+
+    private void closeNitrite() {
+        if (nitriteDb != null) {
+            try {
+                nitriteDb.close();
+            } catch (Exception e) {
+                plugin.getLogger().log(Level.WARNING, "Could not close nitrite database", e);
+            } finally {
+                nitriteDb = null;
+                nitritePlayers = null;
+                nitriteShulkers = null;
             }
         }
     }

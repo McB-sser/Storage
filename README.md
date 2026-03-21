@@ -23,12 +23,12 @@ Items koennen manuell eingelagert, beim Abbauen direkt ins Lager verschoben oder
 
 ## Speicherung der Daten
 
-Standardmaessig speichert das Plugin alle Daten lokal als JSON-Dateien. Dabei werden Spielerlager und Shulker-Einstellungen getrennt gespeichert. Optional kann MySQL aktiviert werden.
+Standardmaessig speichert das Plugin alle Daten lokal in einer eingebetteten Nitrite-Datenbank. Optional kann MySQL aktiviert werden.
 
-### JSON-Standard
+### Nitrite-Standard
 
-- Lagerdaten einzelner Spieler werden lokal gespeichert.
-- Einstellungen einzelner Lager-Shulker werden ebenfalls lokal gespeichert.
+- Lagerdaten einzelner Spieler werden lokal in `plugins/Storage/storage.db` gespeichert.
+- Einstellungen einzelner Lager-Shulker werden ebenfalls dort gespeichert.
 - Keine weitere Konfiguration noetig.
 
 ### MySQL optional
@@ -46,7 +46,7 @@ storage:
     password: "change_me"
 ```
 
-Wenn MySQL nicht erreichbar ist, faellt das Plugin automatisch auf JSON-Dateien zurueck.
+Wenn MySQL nicht erreichbar ist oder deaktiviert bleibt, nutzt das Plugin automatisch Nitrite. Vorhandene JSON-Dateien werden beim ersten Zugriff weiterhin als Legacy-Fallback gelesen und nach Nitrite uebernommen.
 
 ## Wie man den Lager-Shulker bekommt
 
@@ -348,7 +348,7 @@ Ein sinnvoller Start sieht so aus:
 
 ## Konfiguration
 
-Aktuell enthaelt die `config.yml` hauptsaechlich die Storage-Backend-Konfiguration fuer MySQL. Die Spiellogik selbst wird ueber die Menues im Spiel eingestellt, nicht ueber viele Textoptionen.
+Aktuell enthaelt die `config.yml` hauptsaechlich die Storage-Backend-Konfiguration fuer MySQL. Wenn MySQL deaktiviert ist, arbeitet das Plugin standardmaessig mit Nitrite. Die Spiellogik selbst wird ueber die Menues im Spiel eingestellt, nicht ueber viele Textoptionen.
 
 ## Berechtigung
 

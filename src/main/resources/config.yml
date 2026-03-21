@@ -1,5 +1,6 @@
 storage:
   mysql:
+    # Wenn deaktiviert, nutzt Storage automatisch die lokale Nitrite-Datenbank.
     enabled: false
     host: "127.0.0.1"
     port: 3306
