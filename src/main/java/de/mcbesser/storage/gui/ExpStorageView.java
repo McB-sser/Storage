@@ -39,7 +39,7 @@ public class ExpStorageView extends AbstractMenu {
                         "Linksklick: gesamte Spieler-XP einlagern",
                         "Rechtsklick: 100 XP als Orbs ausgeben",
                         "Shift-Rechtsklick: alles ausgeben")));
-        inventory.setItem(26, createSimpleItem(Material.ARROW, "ZurÃƒÂ¼ck"));
+        inventory.setItem(26, createSimpleItem(Material.ARROW, "Zur\u00fcck"));
     }
 
     @Override
@@ -157,5 +157,3 @@ public class ExpStorageView extends AbstractMenu {
         return item;
     }
 }
-
-

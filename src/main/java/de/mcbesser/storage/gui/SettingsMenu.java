@@ -29,9 +29,9 @@ public class SettingsMenu extends AbstractMenu {
         inventory.clear();
 
         inventory.setItem(11, createItem(Material.PAPER, "Berechtigungen verwalten"));
-        inventory.setItem(15, createItem(Material.PINK_DYE, "Farbe wÃƒÂ¤hlen"));
+        inventory.setItem(15, createItem(Material.PINK_DYE, "Farbe w\u00e4hlen"));
 
-        inventory.setItem(26, createItem(Material.ARROW, "ZurÃƒÂ¼ck zum HauptmenÃƒÂ¼"));
+        inventory.setItem(26, createItem(Material.ARROW, "Zur\u00fcck zum Hauptmen\u00fc"));
     }
 
     @Override
@@ -58,5 +58,3 @@ public class SettingsMenu extends AbstractMenu {
         return item;
     }
 }
-
-

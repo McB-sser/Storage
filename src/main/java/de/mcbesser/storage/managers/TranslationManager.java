@@ -1,6 +1,7 @@
 package de.mcbesser.storage.managers;
 
 import org.bukkit.Material;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -48,7 +49,7 @@ public class TranslationManager {
         GERMAN_TO_MATERIAL.put("apfel", "APPLE");
         GERMAN_TO_MATERIAL.put("brot", "BREAD");
         GERMAN_TO_MATERIAL.put("fleisch", "BEEF");
-        GERMAN_TO_MATERIAL.put("hÃƒÂ¤hnchen", "CHICKEN");
+        GERMAN_TO_MATERIAL.put("h\u00e4hnchen", "CHICKEN");
         GERMAN_TO_MATERIAL.put("schwein", "PORKCHOP");
         GERMAN_TO_MATERIAL.put("fisch", "FISH");
         GERMAN_TO_MATERIAL.put("buch", "BOOK");
@@ -72,7 +73,7 @@ public class TranslationManager {
     /**
      * Translates a partial German term to an English material name.
      * Supports fuzzy matching - e.g., "Erd" will match "Erde" -> "DIRT"
-     * 
+     *
      * @param query The partial search query
      * @return The translated material name, or the original query if no match found
      */
@@ -103,5 +104,3 @@ public class TranslationManager {
         return query;
     }
 }
-
-

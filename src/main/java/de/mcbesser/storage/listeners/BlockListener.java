@@ -352,7 +352,7 @@ public class BlockListener implements Listener {
             }
             new QuickSlotsView(plugin, shulkerUuid).open(player);
         } else {
-            player.sendMessage(Component.text("Du hast keine Berechtigung fÃƒÂ¼r diesen Lager-Shulker!",
+            player.sendMessage(Component.text("Du hast keine Berechtigung f\u00fcr diesen Lager-Shulker!",
                     NamedTextColor.RED));
         }
     }
@@ -482,5 +482,3 @@ public class BlockListener implements Listener {
         }
     }
 }
-
-

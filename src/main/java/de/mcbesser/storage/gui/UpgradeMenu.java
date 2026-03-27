@@ -66,15 +66,15 @@ public class UpgradeMenu extends AbstractMenu {
                         "Kosten: 1x Endertruhe",
                         "Klick: +27 Slots freischalten")));
 
-        inventory.setItem(15, createUpgradeItem(Material.CHEST, "KapazitÃƒÂ¤ts-Upgrade",
+        inventory.setItem(15, createUpgradeItem(Material.CHEST, "Kapazit\u00e4ts-Upgrade",
                 List.of(
                         "Besitzer: " + ownerName,
-                        "KapazitÃƒÂ¤t (global): " + lager.getUsedAmount() + "/" + lager.getCapacity(),
+                        "Kapazit\u00e4t (global): " + lager.getUsedAmount() + "/" + lager.getCapacity(),
                         "Upgrade +1728 pro Truhe",
                         "Kosten: 1x Truhe",
-                        "Klick: KapazitÃƒÂ¤t erhÃƒÂ¶hen")));
+                        "Klick: Kapazit\u00e4t erh\u00f6hen")));
 
-        inventory.setItem(26, createSimpleItem(Material.ARROW, "ZurÃƒÂ¼ck"));
+        inventory.setItem(26, createSimpleItem(Material.ARROW, "Zur\u00fcck"));
     }
 
     @Override
@@ -94,7 +94,7 @@ public class UpgradeMenu extends AbstractMenu {
                     player.sendMessage(Component.text("Slots freigeschaltet (global). Neu: " + lager.getUnlockedSlots(),
                             NamedTextColor.GREEN));
                 } else {
-                    player.sendMessage(Component.text("Slots erhÃƒÂ¶ht, aber Integer-Grenze erreicht.",
+                    player.sendMessage(Component.text("Slots erh\u00f6ht, aber Integer-Grenze erreicht.",
                             NamedTextColor.YELLOW));
                 }
                 setMenuItems(player);
@@ -106,7 +106,7 @@ public class UpgradeMenu extends AbstractMenu {
                 }
                 lager.upgradeCapacity();
                 plugin.getLagerManager().saveLager(storageOwner);
-                player.sendMessage(Component.text("KapazitÃƒÂ¤t (global) erhÃƒÂ¶ht auf " + lager.getCapacity(),
+                player.sendMessage(Component.text("Kapazit\u00e4t (global) erh\u00f6ht auf " + lager.getCapacity(),
                         NamedTextColor.GREEN));
                 setMenuItems(player);
             }
@@ -171,4 +171,3 @@ public class UpgradeMenu extends AbstractMenu {
         return item;
     }
 }
-

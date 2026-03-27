@@ -73,8 +73,8 @@ public class PermissionsMenu extends AbstractMenu {
             inventory.setItem(slot++, createPlayerHead(op));
         }
 
-        inventory.setItem(49, createItem(Material.WRITABLE_BOOK, "Spieler hinzufÃƒÂ¼gen"));
-        inventory.setItem(53, createItem(Material.ARROW, "ZurÃƒÂ¼ck zum HauptmenÃƒÂ¼"));
+        inventory.setItem(49, createItem(Material.WRITABLE_BOOK, "Spieler hinzuf\u00fcgen"));
+        inventory.setItem(53, createItem(Material.ARROW, "Zur\u00fcck zum Hauptmen\u00fc"));
     }
 
     @Override
@@ -125,7 +125,7 @@ public class PermissionsMenu extends AbstractMenu {
                     if (!ownerLager.getTrustedPlayers().contains(target.getUniqueId())) {
                         ownerLager.getTrustedPlayers().add(target.getUniqueId());
                         plugin.getLagerManager().saveLager(ownerUuid);
-                        player.sendMessage(Component.text("Spieler " + name + " hinzugefÃƒÂ¼gt.", NamedTextColor.GREEN));
+                        player.sendMessage(Component.text("Spieler " + name + " hinzugef\u00fcgt.", NamedTextColor.GREEN));
                     }
 
                     plugin.getServer().getScheduler().runTask(plugin, () -> this.open(player));
@@ -133,7 +133,7 @@ public class PermissionsMenu extends AbstractMenu {
                 })
                 .text("Spielername...")
                 .itemLeft(new ItemStack(Material.PAPER))
-                .title("Spieler hinzufÃƒÂ¼gen")
+                .title("Spieler hinzuf\u00fcgen")
                 .plugin(plugin)
                 .open(player);
     }
@@ -175,5 +175,3 @@ public class PermissionsMenu extends AbstractMenu {
         return item;
     }
 }
-
-

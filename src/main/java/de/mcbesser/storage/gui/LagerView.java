@@ -115,7 +115,7 @@ public class LagerView extends AbstractMenu {
                 lore.add(Component.text("---", NamedTextColor.DARK_GRAY));
                 lore.add(Component.text("Linksklick: 1 entnehmen", NamedTextColor.YELLOW));
                 lore.add(Component.text("Rechtsklick: 1 Stack entnehmen", NamedTextColor.YELLOW));
-                lore.add(Component.text("Q (Drop): Inventar fÃƒÂ¼llen", NamedTextColor.YELLOW));
+                lore.add(Component.text("Q (Drop): Inventar f\u00fcllen", NamedTextColor.YELLOW));
                 lore.add(Component.text("---", NamedTextColor.DARK_GRAY));
                 lore.add(Component.text("Kategorie per Zahlentaste setzen:", NamedTextColor.AQUA));
                 lore.add(Component.text("1: " + settings.getCategoryName(1) + "  2: " + settings.getCategoryName(2)
@@ -144,21 +144,21 @@ public class LagerView extends AbstractMenu {
         List<StorageItem> filteredItems = getFilteredItems(lager);
         int totalPages = Math.max(1, (int) Math.ceil(filteredItems.size() / 45.0));
 
-        inventory.setItem(45, createItem(Material.BARRIER, "ZurÃƒÂ¼ck zum HauptmenÃƒÂ¼"));
+        inventory.setItem(45, createItem(Material.BARRIER, "Zur\u00fcck zum Hauptmen\u00fc"));
         inventory.setItem(46, createItem(Material.NETHERITE_UPGRADE_SMITHING_TEMPLATE, "Upgrades"));
         inventory.setItem(47, createItem(Material.GRAY_STAINED_GLASS_PANE, ""));
         inventory.setItem(48, createItemWithLore(Material.COMPARATOR, "Sortierung",
                 "Aktuell: " + sortMode.getDisplayName(),
-                "Linksklick: nÃƒÂ¤chste Sortierung",
-                "Rechtsklick: auf Standard zurÃƒÂ¼cksetzen"));
+                "Linksklick: n\u00e4chste Sortierung",
+                "Rechtsklick: auf Standard zur\u00fccksetzen"));
         inventory.setItem(49, createItem(Material.HOPPER, "Items ins Lager legen"));
         inventory.setItem(50, createItemWithLore(Material.CHEST, "Kategorien",
                 "Filter: " + getCategoryFilterText(),
-                "Linksklick: nÃƒÂ¤chste Kategorie",
+                "Linksklick: n\u00e4chste Kategorie",
                 "Rechtsklick: alle anzeigen"));
         inventory.setItem(51, createItemWithLore(Material.SPYGLASS, "Suche",
-                "Linksklick: Suche ÃƒÂ¶ffnen",
-                "Rechtsklick: Suche lÃƒÂ¶schen"));
+                "Linksklick: Suche \u00f6ffnen",
+                "Rechtsklick: Suche l\u00f6schen"));
 
         if (page > 0) {
             inventory.setItem(52, createItemWithLore(Material.ARROW, "Vorherige Seite",
@@ -168,7 +168,7 @@ public class LagerView extends AbstractMenu {
         }
 
         if (page < totalPages - 1) {
-            inventory.setItem(53, createItemWithLore(Material.ARROW, "NÃƒÂ¤chste Seite",
+            inventory.setItem(53, createItemWithLore(Material.ARROW, "N\u00e4chste Seite",
                     "Seite " + (page + 2) + " von " + totalPages));
         } else {
             inventory.setItem(53, createItem(Material.GRAY_STAINED_GLASS_PANE, ""));
@@ -294,7 +294,7 @@ public class LagerView extends AbstractMenu {
             UUID storageOwner = resolveStorageOwner(player);
             PlayerLager currentLager = plugin.getLagerManager().getLager(storageOwner);
             if (slot >= getUnlockedSlotsOnPage(currentLager)) {
-                player.sendMessage(Component.text("Dieser Lager-Slot ist gesperrt. Upgrade nÃƒÂ¶tig.", NamedTextColor.RED));
+                player.sendMessage(Component.text("Dieser Lager-Slot ist gesperrt. Upgrade n\u00f6tig.", NamedTextColor.RED));
                 return;
             }
 
@@ -426,7 +426,7 @@ public class LagerView extends AbstractMenu {
                 if (clickType == ClickType.RIGHT || clickType == ClickType.SHIFT_RIGHT) {
                     searchQuery = "";
                     page = 0;
-                    player.sendMessage(Component.text("Suche zurÃƒÂ¼ckgesetzt.", NamedTextColor.YELLOW));
+                    player.sendMessage(Component.text("Suche zur\u00fcckgesetzt.", NamedTextColor.YELLOW));
                     setMenuItems(player);
                 } else {
                     openSearch(player);
@@ -436,7 +436,7 @@ public class LagerView extends AbstractMenu {
             case 48 -> {
                 if (clickType == ClickType.RIGHT || clickType == ClickType.SHIFT_RIGHT) {
                     sortMode = SortMode.NAME_ASC;
-                    player.sendMessage(Component.text("Sortierung zurÃƒÂ¼ckgesetzt.", NamedTextColor.YELLOW));
+                    player.sendMessage(Component.text("Sortierung zur\u00fcckgesetzt.", NamedTextColor.YELLOW));
                 } else {
                     sortMode = sortMode.next();
                     player.sendMessage(Component.text("Sortierung: " + sortMode.getDisplayName(), NamedTextColor.YELLOW));

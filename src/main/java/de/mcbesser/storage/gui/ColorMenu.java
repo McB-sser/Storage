@@ -27,7 +27,7 @@ public class ColorMenu extends AbstractMenu {
     private final UUID shulkerId;
 
     public ColorMenu(Storage plugin, UUID shulkerId) {
-        super(plugin, Component.text("Shulker Farbe wÃƒÂ¤hlen"), 3);
+        super(plugin, Component.text("Shulker Farbe w\u00e4hlen"), 3);
         this.shulkerId = shulkerId;
     }
 
@@ -53,8 +53,9 @@ public class ColorMenu extends AbstractMenu {
             inventory.setItem(i, createItem(boxes[i], toGermanColorName(boxes[i])));
         }
 
-        inventory.setItem(26, createItem(Material.BARRIER, "ZurÃƒÂ¼ck zum HauptmenÃƒÂ¼"));
+        inventory.setItem(26, createItem(Material.BARRIER, "Zur\u00fcck zum Hauptmen\u00fc"));
     }
+
     @Override
     public void handleInteraction(Player player, int slot, ItemStack clickedItem, ClickType clickType, int hotbarButton) {
         if (slot == 26) {
@@ -85,27 +86,27 @@ public class ColorMenu extends AbstractMenu {
             }
 
             updatePlacedShulkerColors(shulkerId, newType, settings);
-            player.sendMessage("Shulker Farbe auf " + toGermanColorName(clickedItem.getType()) + " geÃƒÂ¤ndert!");
+            player.sendMessage("Shulker Farbe auf " + toGermanColorName(clickedItem.getType()) + " ge\u00e4ndert!");
             setMenuItems(player);
         }
     }
 
     private String toGermanColorName(Material box) {
         return switch (box) {
-            case WHITE_SHULKER_BOX -> "WeiÃƒÅ¸";
+            case WHITE_SHULKER_BOX -> "Wei\u00df";
             case ORANGE_SHULKER_BOX -> "Orange";
             case MAGENTA_SHULKER_BOX -> "Magenta";
             case LIGHT_BLUE_SHULKER_BOX -> "Hellblau";
             case YELLOW_SHULKER_BOX -> "Gelb";
-            case LIME_SHULKER_BOX -> "HellgrÃƒÂ¼n";
+            case LIME_SHULKER_BOX -> "Hellgr\u00fcn";
             case PINK_SHULKER_BOX -> "Pink";
             case GRAY_SHULKER_BOX -> "Grau";
             case LIGHT_GRAY_SHULKER_BOX -> "Hellgrau";
-            case CYAN_SHULKER_BOX -> "TÃƒÂ¼rkis";
+            case CYAN_SHULKER_BOX -> "T\u00fcrkis";
             case PURPLE_SHULKER_BOX -> "Lila";
             case BLUE_SHULKER_BOX -> "Blau";
             case BROWN_SHULKER_BOX -> "Braun";
-            case GREEN_SHULKER_BOX -> "GrÃƒÂ¼n";
+            case GREEN_SHULKER_BOX -> "Gr\u00fcn";
             case RED_SHULKER_BOX -> "Rot";
             case BLACK_SHULKER_BOX -> "Schwarz";
             default -> box.name().replace("_SHULKER_BOX", "");
@@ -180,6 +181,3 @@ public class ColorMenu extends AbstractMenu {
         }
     }
 }
-
-
-

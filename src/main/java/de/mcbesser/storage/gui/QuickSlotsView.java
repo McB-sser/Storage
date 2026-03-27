@@ -91,8 +91,8 @@ public class QuickSlotsView extends AbstractMenu {
                     inventory.setItem(i, createQuickSlotItem(mat, count,
                             "Linksklick: 1 Item nehmen",
                             "Rechtsklick: 1 Stack nehmen",
-                            "Q/Drop: Inventar mit diesem Block fÃƒÂ¼llen",
-                            "Shift-Rechtsklick: Slot lÃƒÂ¶schen"));
+                            "Q/Drop: Inventar mit diesem Block f\u00fcllen",
+                            "Shift-Rechtsklick: Slot l\u00f6schen"));
                     continue;
                 }
             }
@@ -119,7 +119,7 @@ public class QuickSlotsView extends AbstractMenu {
             meta.displayName(Component.text(categoryNumber + ": " + categoryName)
                     .color(NamedTextColor.AQUA));
             meta.lore(List.of(
-                    Component.text("Klicken: Kategorie ÃƒÂ¶ffnen", NamedTextColor.GRAY),
+                    Component.text("Klicken: Kategorie \u00f6ffnen", NamedTextColor.GRAY),
                     Component.text("Mittelklick + Cursor-Item: Icon tauschen", NamedTextColor.GRAY),
                     Component.text("Rechtsklick: Begriff umbenennen", NamedTextColor.GRAY),
                     Component.text("Filter in der Lageransicht", NamedTextColor.DARK_GRAY)));
@@ -132,25 +132,25 @@ public class QuickSlotsView extends AbstractMenu {
         ShulkerSettings settings = plugin.getLagerManager().getShulkerSettings(shulkerId);
         PlayerLager lager = plugin.getLagerManager().getLager(resolveStorageOwner(player));
         inventory.setItem(45, createItemWithLore(Material.CHEST_MINECART, "Schnellzugriffbelegung leeren",
-                "LÃƒÂ¶scht alle belegten Schnellslots"));
+                "L\u00f6scht alle belegten Schnellslots"));
         inventory.setItem(46, createItemWithLore(Material.BLAZE_POWDER, "Einsaugen: "
                 + (settings.isVacuumEnabled() ? "AN" : "AUS"),
                 "Linksklick: An/Aus",
                 "Rechtsklick: Einstellungen"));
         inventory.setItem(47, createItemWithLore(Material.GOLDEN_PICKAXE, "Autom. Einlagerung: "
                 + (settings.isAutoStore() ? "AN" : "AUS"),
-                "Wenn du BlÃƒÂ¶cke abbaust, werden Drops",
+                "Wenn du Bl\u00f6cke abbaust, werden Drops",
                 "automatisch ins Lager transferiert."));
-        inventory.setItem(48, createItemWithLore(Material.SHULKER_BOX, "Shulker nachfÃƒÂ¼llen und einlagern: "
+        inventory.setItem(48, createItemWithLore(Material.SHULKER_BOX, "Shulker nachf\u00fcllen und einlagern: "
                 + (settings.isShulkerRefillEnabled() ? "AN" : "AUS"),
                 "Linksklick: An/Aus",
                 "Rechtsklick: Einstellungen"));
         inventory.setItem(49, createItemWithLore(Material.HOPPER, "Items ins Lager legen",
                 "Mit Cursor-Item: nur dieses Item einlagern",
                 "Ohne Cursor-Item: Hauptinventar einlagern"));
-        inventory.setItem(50, createItemWithLore(Material.PLAYER_HEAD, "Spieler hinzufÃƒÂ¼gen",
-                "Vertrauensliste fÃƒÂ¼r dieses Lager ÃƒÂ¶ffnen"));
-        inventory.setItem(51, createItemWithLore(Material.PINK_DYE, "Farbe wÃƒÂ¤hlen",
+        inventory.setItem(50, createItemWithLore(Material.PLAYER_HEAD, "Spieler hinzuf\u00fcgen",
+                "Vertrauensliste f\u00fcr dieses Lager \u00f6ffnen"));
+        inventory.setItem(51, createItemWithLore(Material.PINK_DYE, "Farbe w\u00e4hlen",
                 "Shulker-Farbe konfigurieren"));
         inventory.setItem(52, createItemWithLore(Material.EXPERIENCE_BOTTLE, "EXP-Speicher",
                 "Gespeichert: " + lager.getStoredExp() + " XP",
@@ -415,7 +415,7 @@ public class QuickSlotsView extends AbstractMenu {
         }
         settings.setShulkerRefillEnabled(!settings.isShulkerRefillEnabled());
         plugin.getLagerManager().saveShulkerSettings(shulkerId);
-        player.sendMessage(Component.text("Shulker nachfÃƒÂ¼llen und einlagern: "
+        player.sendMessage(Component.text("Shulker nachf\u00fcllen und einlagern: "
                 + (settings.isShulkerRefillEnabled() ? "AN" : "AUS"), NamedTextColor.YELLOW));
         setMenuItems(player);
     }

@@ -298,7 +298,7 @@ public class LagerManager {
                     return migrated != null ? migrated : legacy;
                 }
 
-                plugin.getLogger().warning("MySQL Migration fehlgeschlagen, nutze Legacy-JSON fÃƒÂ¼r " + playerUuid);
+                plugin.getLogger().warning("MySQL Migration fehlgeschlagen, nutze Legacy-JSON f\u00fcr " + playerUuid);
                 return legacy;
             }
         } catch (SQLException e) {

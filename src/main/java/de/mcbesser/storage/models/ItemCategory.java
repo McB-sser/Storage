@@ -3,10 +3,10 @@ package de.mcbesser.storage.models;
 import org.bukkit.Material;
 
 public enum ItemCategory {
-    BLOCKS(1, "BlÃƒÂ¶cke", Material.STONE),
+    BLOCKS(1, "Bl\u00f6cke", Material.STONE),
     TOOLS(2, "Werkzeuge", Material.DIAMOND_PICKAXE),
     WEAPONS(3, "Waffen", Material.DIAMOND_SWORD),
-    ARMOR(4, "RÃƒÂ¼stungen", Material.DIAMOND_CHESTPLATE),
+    ARMOR(4, "R\u00fcstungen", Material.DIAMOND_CHESTPLATE),
     FOOD(5, "Nahrung", Material.COOKED_BEEF),
     ORES(6, "Erze", Material.DIAMOND),
     REDSTONE(7, "Redstone", Material.REDSTONE),
@@ -110,5 +110,3 @@ public enum ItemCategory {
         return MISC;
     }
 }
-
-

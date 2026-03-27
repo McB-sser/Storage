@@ -19,7 +19,7 @@ public class RefillSettingsView extends AbstractMenu {
     private final UUID shulkerId;
 
     public RefillSettingsView(Storage plugin, UUID shulkerId) {
-        super(plugin, Component.text("Auto-NachfÃƒÂ¼ll Einstellungen"), 3);
+        super(plugin, Component.text("Auto-Nachf\u00fcll Einstellungen"), 3);
         this.shulkerId = shulkerId;
     }
 
@@ -39,19 +39,19 @@ public class RefillSettingsView extends AbstractMenu {
         ItemStack refillItem = new ItemStack(mat != null ? mat : Material.BARRIER);
         ItemMeta meta = refillItem.getItemMeta();
         if (meta != null) {
-            meta.displayName(Component.text("NachfÃƒÂ¼ll-Item: " + (mat != null ? mat.name() : "Keines"))
+            meta.displayName(Component.text("Nachf\u00fcll-Item: " + (mat != null ? mat.name() : "Keines"))
                     .color(NamedTextColor.YELLOW));
             meta.lore(List.of(
                     Component.text("Klicken mit Item am Mauszeiger,", NamedTextColor.GRAY),
-                    Component.text("um das NachfÃƒÂ¼ll-Item festzulegen.", NamedTextColor.GRAY),
-                    Component.text("Rechtsklick: ZurÃƒÂ¼cksetzen", NamedTextColor.GRAY)));
+                    Component.text("um das Nachf\u00fcll-Item festzulegen.", NamedTextColor.GRAY),
+                    Component.text("Rechtsklick: Zur\u00fccksetzen", NamedTextColor.GRAY)));
             refillItem.setItemMeta(meta);
         }
         inventory.setItem(11, refillItem);
 
         inventory.setItem(13, createItem(Material.IRON_INGOT, "Mindestbestand: " + settings.getMinStock()));
         inventory.setItem(15, createItem(Material.HOPPER, "Entnahmemenge: " + settings.getWithdrawAmount()));
-        inventory.setItem(26, createItem(Material.ARROW, "ZurÃƒÂ¼ck zum HauptmenÃƒÂ¼"));
+        inventory.setItem(26, createItem(Material.ARROW, "Zur\u00fcck zum Hauptmen\u00fc"));
     }
 
     @Override
@@ -67,7 +67,7 @@ public class RefillSettingsView extends AbstractMenu {
             if (clickType == ClickType.RIGHT || clickType == ClickType.SHIFT_RIGHT) {
                 settings.setFillItemMaterial(null);
                 plugin.getLagerManager().saveShulkerSettings(shulkerId);
-                player.sendMessage(Component.text("NachfÃƒÂ¼ll-Item zurÃƒÂ¼ckgesetzt.", NamedTextColor.YELLOW));
+                player.sendMessage(Component.text("Nachf\u00fcll-Item zur\u00fcckgesetzt.", NamedTextColor.YELLOW));
                 setMenuItems(player);
                 return;
             }
@@ -76,7 +76,7 @@ public class RefillSettingsView extends AbstractMenu {
                 settings.setFillItemMaterial(cursor.getType().name());
                 plugin.getLagerManager().saveShulkerSettings(shulkerId);
                 player.sendMessage(
-                        Component.text("NachfÃƒÂ¼ll-Item gesetzt auf: " + cursor.getType().name(), NamedTextColor.GREEN));
+                        Component.text("Nachf\u00fcll-Item gesetzt auf: " + cursor.getType().name(), NamedTextColor.GREEN));
                 setMenuItems(player);
             } else {
                 player.sendMessage(Component.text("Bitte nimm ein Item in den Mauszeiger!", NamedTextColor.RED));
@@ -126,5 +126,3 @@ public class RefillSettingsView extends AbstractMenu {
         return item;
     }
 }
-
-
