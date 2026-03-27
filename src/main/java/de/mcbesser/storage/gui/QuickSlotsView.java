@@ -96,7 +96,7 @@ public class QuickSlotsView extends AbstractMenu {
                     continue;
                 }
             }
-            inventory.setItem(i, createItemWithLore(Material.BLACK_STAINED_GLASS_PANE,
+            inventory.setItem(i, createItemWithLore(Material.LIME_STAINED_GLASS_PANE,
                     "Slot " + (i + 1) + " (Klicken zum Belegen)",
                     "Klick mit Item am Cursor: Slot belegen",
                     "Mittelklick mit Cursor-Item: Slot belegen"));
@@ -131,8 +131,8 @@ public class QuickSlotsView extends AbstractMenu {
     private void addNavigationItems(Player player) {
         ShulkerSettings settings = plugin.getLagerManager().getShulkerSettings(shulkerId);
         PlayerLager lager = plugin.getLagerManager().getLager(resolveStorageOwner(player));
-        inventory.setItem(45, createItemWithLore(Material.CHEST_MINECART, "Schnellzugriffbelegung leeren",
-                "L\u00f6scht alle belegten Schnellslots"));
+        inventory.setItem(45, createItemWithLore(Material.HOPPER_MINECART, "Filtereinstellungen",
+                "Filterseite f\u00fcr Einsaugen \u00f6ffnen"));
         inventory.setItem(46, createItemWithLore(Material.BLAZE_POWDER, "Einsaugen: "
                 + (settings.isVacuumEnabled() ? "AN" : "AUS"),
                 "Linksklick: An/Aus",
@@ -158,7 +158,8 @@ public class QuickSlotsView extends AbstractMenu {
                 "Rechtsklick: 100 XP als Orbs ausgeben",
                 "Shift-Rechtsklick: alles ausgeben"));
         inventory.setItem(53, createItemWithLore(Material.SPYGLASS, "Lager durchsuchen",
-                "Vollansicht mit Kategorien, Suche und Sortierung"));
+                "Klick: Vollansicht mit Kategorien, Suche und Sortierung",
+                "Ducken + Rechtsklick: Schnellzugriffbelegung leeren"));
     }
 
     @Override
@@ -286,13 +287,7 @@ public class QuickSlotsView extends AbstractMenu {
 
     private void handleNavigation(Player player, int slot, ClickType clickType) {
         switch (slot) {
-            case 45 -> {
-                ShulkerSettings s = plugin.getLagerManager().getShulkerSettings(shulkerId);
-                s.getQuickSlots().clear();
-                plugin.getLagerManager().saveShulkerSettings(shulkerId);
-                player.sendMessage(Component.text("Schnellzugriffbelegung geleert.", NamedTextColor.GREEN));
-                setMenuItems(player);
-            }
+            case 45 -> new VacuumFilterSettingsView(plugin, shulkerId).open(player);
             case 46 -> handleVacuumButton(player, clickType);
             case 47 -> {
                 ShulkerSettings s = plugin.getLagerManager().getShulkerSettings(shulkerId);
@@ -373,8 +368,22 @@ public class QuickSlotsView extends AbstractMenu {
                     setMenuItems(player);
                 }
             }
-            case 53 -> new LagerView(plugin, shulkerId).open(player);
+            case 53 -> {
+                if (player.isSneaking() && (clickType == ClickType.RIGHT || clickType == ClickType.SHIFT_RIGHT)) {
+                    clearQuickSlots(player);
+                } else {
+                    new LagerView(plugin, shulkerId).open(player);
+                }
+            }
         }
+    }
+
+    private void clearQuickSlots(Player player) {
+        ShulkerSettings settings = plugin.getLagerManager().getShulkerSettings(shulkerId);
+        settings.getQuickSlots().clear();
+        plugin.getLagerManager().saveShulkerSettings(shulkerId);
+        player.sendMessage(Component.text("Schnellzugriffbelegung geleert.", NamedTextColor.GREEN));
+        setMenuItems(player);
     }
 
     private ItemStack createQuickSlotItem(Material material, int count, String... loreLines) {

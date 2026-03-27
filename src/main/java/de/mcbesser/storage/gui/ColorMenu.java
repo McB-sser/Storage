@@ -53,12 +53,17 @@ public class ColorMenu extends AbstractMenu {
             inventory.setItem(i, createItem(boxes[i], toGermanColorName(boxes[i])));
         }
 
-        inventory.setItem(26, createItem(Material.BARRIER, "Zur\u00fcck zum Hauptmen\u00fc"));
+        for (int slot = 0; slot < inventory.getSize(); slot++) {
+            if (inventory.getItem(slot) == null) {
+                inventory.setItem(slot, createItem(Material.BLACK_STAINED_GLASS_PANE, ""));
+            }
+        }
+        inventory.setItem(18, createItem(Material.ARROW, "Zur\u00fcck zum Hauptmen\u00fc"));
     }
 
     @Override
     public void handleInteraction(Player player, int slot, ItemStack clickedItem, ClickType clickType, int hotbarButton) {
-        if (slot == 26) {
+        if (slot == 18) {
             new QuickSlotsView(plugin, shulkerId).open(player);
             return;
         }

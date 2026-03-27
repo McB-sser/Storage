@@ -73,18 +73,21 @@ public class PermissionsMenu extends AbstractMenu {
             inventory.setItem(slot++, createPlayerHead(op));
         }
 
-        inventory.setItem(49, createItem(Material.WRITABLE_BOOK, "Spieler hinzuf\u00fcgen"));
-        inventory.setItem(53, createItem(Material.ARROW, "Zur\u00fcck zum Hauptmen\u00fc"));
+        for (int bottomSlot = 45; bottomSlot <= 53; bottomSlot++) {
+            inventory.setItem(bottomSlot, createItem(Material.BLACK_STAINED_GLASS_PANE, ""));
+        }
+        inventory.setItem(45, createItem(Material.ARROW, "Zur\u00fcck zum Hauptmen\u00fc"));
+        inventory.setItem(53, createItem(Material.WRITABLE_BOOK, "Spieler hinzuf\u00fcgen"));
     }
 
     @Override
     public void handleInteraction(Player player, int slot, ItemStack clickedItem, ClickType clickType, int hotbarButton) {
-        if (slot == 53) {
+        if (slot == 45) {
             new QuickSlotsView(plugin, shulkerId).open(player);
             return;
         }
 
-        if (slot == 49) {
+        if (slot == 53) {
             openAddPlayerAnvil(player);
             return;
         }

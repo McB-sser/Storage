@@ -52,35 +52,22 @@ public class VacuumSettingsView extends AbstractMenu {
         ShulkerSettings settings = plugin.getLagerManager().getShulkerSettings(shulkerId);
         PlayerLager lager = plugin.getLagerManager().getLager(resolveStorageOwner(player));
 
-        for (int i = 0; i < 9; i++) {
-            String matName = settings.getVacuumFilterSlots().get(i);
-            Material mat = matName != null ? Material.matchMaterial(matName) : null;
-            if (mat != null) {
-                inventory.setItem(i, createItemWithLore(mat, "Filter " + (i + 1) + ": " + mat.name(),
-                        "Shift-Rechtsklick: entfernen"));
-            } else {
-                inventory.setItem(i, createItemWithLore(Material.BLACK_STAINED_GLASS_PANE, "Filter " + (i + 1) + " leer",
-                        "Klick mit Item am Cursor: setzen"));
-            }
-        }
-
-        inventory.setItem(10, createItemWithLore(Material.REPEATER, "Einsaugen: " + (settings.isVacuumEnabled() ? "AN" : "AUS"),
+        inventory.setItem(0, createItemWithLore(Material.REPEATER, "Einsaugen: " + (settings.isVacuumEnabled() ? "AN" : "AUS"),
                 "Klick zum Umschalten"));
 
         Material fuelMat = lager.getVacuumFuelMaterial() != null
                 ? Material.matchMaterial(lager.getVacuumFuelMaterial())
                 : null;
-        inventory.setItem(12, createItemWithLore(fuelMat != null ? fuelMat : Material.BARRIER,
+        inventory.setItem(2, createItemWithLore(fuelMat != null ? fuelMat : Material.BARRIER,
                 "Brennstoff (global): " + (fuelMat != null ? fuelMat.name() : "nicht gesetzt"),
                 "Item am Cursor + Klick: Brennstoff setzen"));
 
-        inventory.setItem(14, createItemWithLore(Material.EXPERIENCE_BOTTLE, "Ladung (global): " + lager.getVacuumCharge(),
+        inventory.setItem(3, createItemWithLore(Material.EXPERIENCE_BOTTLE, "Ladung (global): " + lager.getVacuumCharge(),
                 "Linksklick: 1 Brennstoff verbrauchen",
                 "Shift-Links: alle passenden verbrauchen",
                 "+" + CHARGE_PER_FUEL + " Ladung pro Brennstoff"));
-        inventory.setItem(16, createItemWithLore(Material.HOPPER, "Filtermodus: "
-                + (settings.isVacuumFilterEnabled() ? "NUR FILTER" : "ALLE ITEMS"),
-                "Klick: umschalten"));
+        inventory.setItem(8, createItemWithLore(Material.HOPPER_MINECART, "Filtereinstellungen",
+                "Klick: Filterseite \u00f6ffnen"));
 
         String rangeMode = normalizeRangeMode(settings.getVacuumRangeMode());
         inventory.setItem(19, createItemWithLore(Material.COMPARATOR, "Bereichsmodus: " + toModeDisplay(rangeMode),
@@ -105,20 +92,28 @@ public class VacuumSettingsView extends AbstractMenu {
                 "X-Summe max: " + XZ_SUM_LIMIT,
                 "Z-Summe max: " + XZ_SUM_LIMIT,
                 "Y-Summe max: " + Y_SUM_LIMIT));
-        inventory.setItem(28, createRangeItem(Material.RED_STAINED_GLASS, "X- (links)", settings.getVacuumRangeNegX(),
+        inventory.setItem(28, createRangeItem(Material.RED_DYE, "X- (links)", settings.getVacuumRangeNegX(),
                 settings.getVacuumRangePosX(), XZ_SUM_LIMIT));
-        inventory.setItem(29, createRangeItem(Material.LIME_STAINED_GLASS, "X+ (rechts)", settings.getVacuumRangePosX(),
+        inventory.setItem(29, createRangeItem(Material.LIME_DYE, "X+ (rechts)", settings.getVacuumRangePosX(),
                 settings.getVacuumRangeNegX(), XZ_SUM_LIMIT));
-        inventory.setItem(30, createRangeItem(Material.RED_STAINED_GLASS_PANE, "Z- (vorne)", settings.getVacuumRangeNegZ(),
+        inventory.setItem(30, createRangeItem(Material.RED_DYE, "Z- (vorne)", settings.getVacuumRangeNegZ(),
                 settings.getVacuumRangePosZ(), XZ_SUM_LIMIT));
-        inventory.setItem(31, createRangeItem(Material.LIME_STAINED_GLASS_PANE, "Z+ (hinten)", settings.getVacuumRangePosZ(),
+        inventory.setItem(31, createRangeItem(Material.LIME_DYE, "Z+ (hinten)", settings.getVacuumRangePosZ(),
                 settings.getVacuumRangeNegZ(), XZ_SUM_LIMIT));
         inventory.setItem(32, createRangeItem(Material.RED_CANDLE, "Y- (unten)", settings.getVacuumRangeNegY(),
                 settings.getVacuumRangePosY(), Y_SUM_LIMIT));
         inventory.setItem(33, createRangeItem(Material.LIME_CANDLE, "Y+ (oben)", settings.getVacuumRangePosY(),
                 settings.getVacuumRangeNegY(), Y_SUM_LIMIT));
 
-        inventory.setItem(44, createSimpleItem(Material.ARROW, "Zurueck"));
+        for (int slot = 0; slot < inventory.getSize(); slot++) {
+            if (inventory.getItem(slot) == null) {
+                inventory.setItem(slot, createSimpleItem(Material.BLACK_STAINED_GLASS_PANE, ""));
+            }
+        }
+        for (int slot = 36; slot <= 44; slot++) {
+            inventory.setItem(slot, createSimpleItem(Material.BLACK_STAINED_GLASS_PANE, ""));
+        }
+        inventory.setItem(36, createSimpleItem(Material.ARROW, "Zurueck"));
     }
 
     @Override
@@ -127,31 +122,15 @@ public class VacuumSettingsView extends AbstractMenu {
         UUID storageOwner = resolveStorageOwner(player);
         PlayerLager lager = plugin.getLagerManager().getLager(storageOwner);
 
-        if (slot >= 0 && slot <= 8) {
-            if (clickType == ClickType.SHIFT_RIGHT) {
-                settings.getVacuumFilterSlots().remove(slot);
-                plugin.getLagerManager().saveShulkerSettings(shulkerId);
-                setMenuItems(player);
-                return;
-            }
-            ItemStack cursor = player.getItemOnCursor();
-            if (cursor != null && cursor.getType() != Material.AIR) {
-                settings.getVacuumFilterSlots().put(slot, cursor.getType().name());
-                plugin.getLagerManager().saveShulkerSettings(shulkerId);
-                setMenuItems(player);
-            }
-            return;
-        }
-
         switch (slot) {
-            case 10 -> {
+            case 0 -> {
                 settings.setVacuumEnabled(!settings.isVacuumEnabled());
                 plugin.getLagerManager().saveShulkerSettings(shulkerId);
                 player.sendMessage(Component.text("Einsaugen: " + (settings.isVacuumEnabled() ? "AN" : "AUS"),
                         NamedTextColor.YELLOW));
                 setMenuItems(player);
             }
-            case 12 -> {
+            case 2 -> {
                 ItemStack cursor = player.getItemOnCursor();
                 if (cursor != null && cursor.getType() != Material.AIR) {
                     lager.setVacuumFuelMaterial(cursor.getType().name());
@@ -164,7 +143,7 @@ public class VacuumSettingsView extends AbstractMenu {
                             NamedTextColor.RED));
                 }
             }
-            case 14 -> {
+            case 3 -> {
                 String fuelName = lager.getVacuumFuelMaterial();
                 Material fuelMat = fuelName != null ? Material.matchMaterial(fuelName) : null;
                 if (fuelMat == null) {
@@ -186,13 +165,7 @@ public class VacuumSettingsView extends AbstractMenu {
                         NamedTextColor.GREEN));
                 setMenuItems(player);
             }
-            case 16 -> {
-                settings.setVacuumFilterEnabled(!settings.isVacuumFilterEnabled());
-                plugin.getLagerManager().saveShulkerSettings(shulkerId);
-                player.sendMessage(Component.text("Einsaug-Filtermodus: "
-                        + (settings.isVacuumFilterEnabled() ? "NUR FILTER" : "ALLE ITEMS"), NamedTextColor.YELLOW));
-                setMenuItems(player);
-            }
+            case 8 -> new VacuumFilterSettingsView(plugin, shulkerId).open(player);
             case 19 -> {
                 settings.setVacuumRangeMode(nextMode(normalizeRangeMode(settings.getVacuumRangeMode())));
                 plugin.getLagerManager().saveShulkerSettings(shulkerId);
@@ -268,7 +241,7 @@ public class VacuumSettingsView extends AbstractMenu {
                 plugin.getLagerManager().saveShulkerSettings(shulkerId);
                 setMenuItems(player);
             }
-            case 44 -> new QuickSlotsView(plugin, shulkerId).open(player);
+            case 36 -> new QuickSlotsView(plugin, shulkerId).open(player);
         }
     }
 

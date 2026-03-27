@@ -36,7 +36,7 @@ public class RefillSettingsView extends AbstractMenu {
         Material mat = settings.getFillItemMaterial() != null ? Material.matchMaterial(settings.getFillItemMaterial())
                 : null;
 
-        ItemStack refillItem = new ItemStack(mat != null ? mat : Material.BARRIER);
+        ItemStack refillItem = new ItemStack(mat != null ? mat : Material.LIME_STAINED_GLASS_PANE);
         ItemMeta meta = refillItem.getItemMeta();
         if (meta != null) {
             meta.displayName(Component.text("Nachf\u00fcll-Item: " + (mat != null ? mat.name() : "Keines"))
@@ -51,12 +51,17 @@ public class RefillSettingsView extends AbstractMenu {
 
         inventory.setItem(13, createItem(Material.IRON_INGOT, "Mindestbestand: " + settings.getMinStock()));
         inventory.setItem(15, createItem(Material.HOPPER, "Entnahmemenge: " + settings.getWithdrawAmount()));
-        inventory.setItem(26, createItem(Material.ARROW, "Zur\u00fcck zum Hauptmen\u00fc"));
+        for (int slot = 0; slot < inventory.getSize(); slot++) {
+            if (inventory.getItem(slot) == null) {
+                inventory.setItem(slot, createItem(Material.BLACK_STAINED_GLASS_PANE, ""));
+            }
+        }
+        inventory.setItem(18, createItem(Material.ARROW, "Zur\u00fcck zum Hauptmen\u00fc"));
     }
 
     @Override
     public void handleInteraction(Player player, int slot, ItemStack clickedItem, ClickType clickType, int hotbarButton) {
-        if (slot == 26) {
+        if (slot == 18) {
             new QuickSlotsView(plugin, shulkerId).open(player);
             return;
         }

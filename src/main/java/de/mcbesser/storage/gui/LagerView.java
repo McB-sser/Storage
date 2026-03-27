@@ -144,9 +144,9 @@ public class LagerView extends AbstractMenu {
         List<StorageItem> filteredItems = getFilteredItems(lager);
         int totalPages = Math.max(1, (int) Math.ceil(filteredItems.size() / 45.0));
 
-        inventory.setItem(45, createItem(Material.BARRIER, "Zur\u00fcck zum Hauptmen\u00fc"));
+        inventory.setItem(45, createItem(Material.ARROW, "Zur\u00fcck zum Hauptmen\u00fc"));
         inventory.setItem(46, createItem(Material.NETHERITE_UPGRADE_SMITHING_TEMPLATE, "Upgrades"));
-        inventory.setItem(47, createItem(Material.GRAY_STAINED_GLASS_PANE, ""));
+        inventory.setItem(47, createItem(Material.BLACK_STAINED_GLASS_PANE, ""));
         inventory.setItem(48, createItemWithLore(Material.COMPARATOR, "Sortierung",
                 "Aktuell: " + sortMode.getDisplayName(),
                 "Linksklick: n\u00e4chste Sortierung",
@@ -164,14 +164,14 @@ public class LagerView extends AbstractMenu {
             inventory.setItem(52, createItemWithLore(Material.ARROW, "Vorherige Seite",
                     "Seite " + page + " von " + totalPages));
         } else {
-            inventory.setItem(52, createItem(Material.GRAY_STAINED_GLASS_PANE, ""));
+            inventory.setItem(52, createItem(Material.BLACK_STAINED_GLASS_PANE, ""));
         }
 
         if (page < totalPages - 1) {
             inventory.setItem(53, createItemWithLore(Material.ARROW, "N\u00e4chste Seite",
                     "Seite " + (page + 2) + " von " + totalPages));
         } else {
-            inventory.setItem(53, createItem(Material.GRAY_STAINED_GLASS_PANE, ""));
+            inventory.setItem(53, createItem(Material.BLACK_STAINED_GLASS_PANE, ""));
         }
     }
 
