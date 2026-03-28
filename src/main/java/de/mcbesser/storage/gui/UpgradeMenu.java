@@ -74,7 +74,13 @@ public class UpgradeMenu extends AbstractMenu {
                         "Kosten: 1x Truhe",
                         "Klick: Kapazit\u00e4t erh\u00f6hen")));
 
-        inventory.setItem(26, createSimpleItem(Material.ARROW, "Zur\u00fcck"));
+        for (int slot = 0; slot < inventory.getSize(); slot++) {
+            if (inventory.getItem(slot) == null) {
+                inventory.setItem(slot, createSimpleItem(Material.BLACK_STAINED_GLASS_PANE, ""));
+            }
+        }
+
+        inventory.setItem(18, createSimpleItem(Material.ARROW, "Zur\u00fcck"));
     }
 
     @Override
@@ -110,7 +116,7 @@ public class UpgradeMenu extends AbstractMenu {
                         NamedTextColor.GREEN));
                 setMenuItems(player);
             }
-            case 26 -> new QuickSlotsView(plugin, shulkerId).open(player);
+            case 18 -> new QuickSlotsView(plugin, shulkerId).open(player);
         }
     }
 
