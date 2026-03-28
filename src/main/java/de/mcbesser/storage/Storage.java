@@ -7,13 +7,16 @@ import de.mcbesser.storage.listeners.MiddleClickStoreListener;
 import de.mcbesser.storage.listeners.PickBlockListener;
 import de.mcbesser.storage.listeners.ShulkerListener;
 import de.mcbesser.storage.listeners.BlockListener;
+import de.mcbesser.storage.listeners.StorageSidebarListener;
 import de.mcbesser.storage.listeners.VacuumListener;
 import org.bukkit.plugin.java.JavaPlugin;
+import de.mcbesser.storage.sidebar.StorageSidebar;
 
 public class Storage extends JavaPlugin {
     private static Storage instance;
     private LagerManager lagerManager;
     private RecipeManager recipeManager;
+    private StorageSidebar storageSidebar;
 
     @Override
     public void onEnable() {
@@ -22,6 +25,7 @@ public class Storage extends JavaPlugin {
 
         this.lagerManager = new LagerManager(this);
         this.recipeManager = new RecipeManager(this);
+        this.storageSidebar = new StorageSidebar(this);
         this.recipeManager.registerRecipes();
         getServer().getPluginManager().registerEvents(this.recipeManager, this);
 
@@ -31,12 +35,17 @@ public class Storage extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new VacuumListener(this), this);
         getServer().getPluginManager().registerEvents(new PickBlockListener(this), this);
         getServer().getPluginManager().registerEvents(new MiddleClickStoreListener(this), this);
+        getServer().getPluginManager().registerEvents(new StorageSidebarListener(this, storageSidebar), this);
+        storageSidebar.start();
 
         getLogger().info("Storage erfolgreich aktiviert!");
     }
 
     @Override
     public void onDisable() {
+        if (storageSidebar != null) {
+            storageSidebar.stop();
+        }
         if (lagerManager != null) {
             lagerManager.saveAllData();
             lagerManager.shutdown();
@@ -50,6 +59,10 @@ public class Storage extends JavaPlugin {
 
     public LagerManager getLagerManager() {
         return lagerManager;
+    }
+
+    public StorageSidebar getStorageSidebar() {
+        return storageSidebar;
     }
 }
 

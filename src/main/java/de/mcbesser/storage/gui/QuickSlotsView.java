@@ -88,7 +88,9 @@ public class QuickSlotsView extends AbstractMenu {
                             break;
                         }
                     }
+                    boolean scoreboardSlot = i < 18;
                     inventory.setItem(i, createQuickSlotItem(mat, count,
+                            scoreboardSlot ? "Wird im Scoreboard angezeigt" : null,
                             "Linksklick: 1 Item nehmen",
                             "Rechtsklick: 1 Stack nehmen",
                             "Q/Drop: Inventar mit diesem Block f\u00fcllen",
@@ -96,8 +98,10 @@ public class QuickSlotsView extends AbstractMenu {
                     continue;
                 }
             }
-            inventory.setItem(i, createItemWithLore(Material.LIME_STAINED_GLASS_PANE,
-                    "Slot " + (i + 1) + " (Klicken zum Belegen)",
+            boolean scoreboardSlot = i < 18;
+            inventory.setItem(i, createItemWithLore(scoreboardSlot ? Material.GREEN_STAINED_GLASS_PANE : Material.LIME_STAINED_GLASS_PANE,
+                    "Slot " + toLogicalQuickSlotNumber(i) + " (Klicken zum Belegen)",
+                    scoreboardSlot ? "Dieser Slot wird im Scoreboard angezeigt" : null,
                     "Klick mit Item am Cursor: Slot belegen",
                     "Mittelklick mit Cursor-Item: Slot belegen"));
         }
@@ -207,7 +211,7 @@ public class QuickSlotsView extends AbstractMenu {
             if (cursor.getType() != Material.AIR) {
                 settings.getQuickSlots().put(slot, cursor.getType().name());
                 plugin.getLagerManager().saveShulkerSettings(shulkerId);
-                player.sendMessage(Component.text("Slot " + (slot + 1) + " belegt mit ", NamedTextColor.GREEN)
+                player.sendMessage(Component.text("Slot " + toLogicalQuickSlotNumber(slot) + " belegt mit ", NamedTextColor.GREEN)
                         .append(Component.translatable(cursor.getType().translationKey()).color(NamedTextColor.GREEN)));
                 setMenuItems(player);
                 return;
@@ -221,7 +225,7 @@ public class QuickSlotsView extends AbstractMenu {
                 && !isEmptyQuickSlotPlaceholder(clickedItem.getType())) {
             settings.getQuickSlots().remove(slot);
             plugin.getLagerManager().saveShulkerSettings(shulkerId);
-            player.sendMessage(Component.text("Slot " + (slot + 1) + " geleert.", NamedTextColor.YELLOW));
+            player.sendMessage(Component.text("Slot " + toLogicalQuickSlotNumber(slot) + " geleert.", NamedTextColor.YELLOW));
             setMenuItems(player);
             return;
         }
@@ -387,7 +391,12 @@ public class QuickSlotsView extends AbstractMenu {
     private boolean isEmptyQuickSlotPlaceholder(Material material) {
         return material == Material.GRAY_STAINED_GLASS_PANE
                 || material == Material.BLACK_STAINED_GLASS_PANE
-                || material == Material.LIME_STAINED_GLASS_PANE;
+                || material == Material.LIME_STAINED_GLASS_PANE
+                || material == Material.GREEN_STAINED_GLASS_PANE;
+    }
+
+    private int toLogicalQuickSlotNumber(int inventorySlot) {
+        return inventorySlot - 8;
     }
 
     private ItemStack createQuickSlotItem(Material material, int count, String... loreLines) {
@@ -399,6 +408,9 @@ public class QuickSlotsView extends AbstractMenu {
                     .color(NamedTextColor.YELLOW));
             java.util.List<Component> lore = new java.util.ArrayList<>();
             for (String line : loreLines) {
+                if (line == null || line.isBlank()) {
+                    continue;
+                }
                 lore.add(Component.text(line).color(NamedTextColor.GRAY));
             }
             meta.lore(lore);
@@ -450,6 +462,9 @@ public class QuickSlotsView extends AbstractMenu {
             meta.displayName(Component.text(name).color(NamedTextColor.YELLOW));
             java.util.List<Component> lore = new java.util.ArrayList<>();
             for (String line : loreLines) {
+                if (line == null || line.isBlank()) {
+                    continue;
+                }
                 lore.add(Component.text(line).color(NamedTextColor.GRAY));
             }
             meta.lore(lore);
