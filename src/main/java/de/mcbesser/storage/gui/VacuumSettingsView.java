@@ -9,14 +9,15 @@ import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.ItemType;
 import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 public class VacuumSettingsView extends AbstractMenu {
-    private static final int CHARGE_PER_FUEL = 64;
     private static final int XZ_SUM_LIMIT = 48;
     private static final int Y_SUM_LIMIT = 320;
     private static final int SMALL_STEP = 1;
@@ -60,12 +61,16 @@ public class VacuumSettingsView extends AbstractMenu {
                 : null;
         inventory.setItem(2, createItemWithLore(fuelMat != null ? fuelMat : Material.BARRIER,
                 "Brennstoff (global): " + (fuelMat != null ? fuelMat.name() : "nicht gesetzt"),
-                "Item am Cursor + Klick: Brennstoff setzen"));
+                "Item am Cursor + Klick: Brennstoff setzen",
+                "Nur echte Ofen-Brennstoffe sind erlaubt"));
 
+        int chargePerFuel = getChargeForFuel(fuelMat);
         inventory.setItem(3, createItemWithLore(Material.EXPERIENCE_BOTTLE, "Ladung (global): " + lager.getVacuumCharge(),
                 "Linksklick: 1 Brennstoff verbrauchen",
                 "Shift-Links: alle passenden verbrauchen",
-                "+" + CHARGE_PER_FUEL + " Ladung pro Brennstoff"));
+                chargePerFuel > 0
+                        ? "+" + chargePerFuel + " Ladung pro Brennstoff"
+                        : "Minecraft-Brenndauer /20 wird verwendet"));
         inventory.setItem(8, createItemWithLore(Material.HOPPER_MINECART, "Filtereinstellungen",
                 "Klick: Filterseite \u00f6ffnen"));
 
@@ -133,6 +138,10 @@ public class VacuumSettingsView extends AbstractMenu {
             case 2 -> {
                 ItemStack cursor = player.getItemOnCursor();
                 if (cursor != null && cursor.getType() != Material.AIR) {
+                    if (!cursor.getType().isFuel() || getChargeForFuel(cursor.getType()) <= 0) {
+                        player.sendMessage(Component.text("Dieses Item ist kein gueltiger Brennstoff.", NamedTextColor.RED));
+                        return;
+                    }
                     lager.setVacuumFuelMaterial(cursor.getType().name());
                     plugin.getLagerManager().saveLager(storageOwner);
                     player.sendMessage(Component.text("Brennstoff (global) gesetzt: " + cursor.getType().name(),
@@ -146,21 +155,23 @@ public class VacuumSettingsView extends AbstractMenu {
             case 3 -> {
                 String fuelName = lager.getVacuumFuelMaterial();
                 Material fuelMat = fuelName != null ? Material.matchMaterial(fuelName) : null;
-                if (fuelMat == null) {
+                int chargePerFuel = getChargeForFuel(fuelMat);
+                if (fuelMat == null || chargePerFuel <= 0) {
                     player.sendMessage(Component.text("Kein gueltiger Brennstoff gesetzt.", NamedTextColor.RED));
                     return;
                 }
 
-                int consumed = consumeFuel(player, fuelMat, clickType.isShiftClick());
-                if (consumed <= 0) {
+                FuelConsumption consumption = consumeFuel(player, fuelMat, clickType.isShiftClick(), chargePerFuel);
+                if (consumption.consumed() <= 0) {
                     player.sendMessage(Component.text("Kein passender Brennstoff gefunden.", NamedTextColor.RED));
                     return;
                 }
 
-                lager.addVacuumCharge(consumed * CHARGE_PER_FUEL);
+                lager.addVacuumCharge(consumption.chargeAdded());
                 plugin.getLagerManager().saveLager(storageOwner);
+                addRemainderItems(player, consumption.remainders());
                 player.sendMessage(Component.text(
-                        consumed + "x " + fuelMat.name() + " verbraucht, +" + (consumed * CHARGE_PER_FUEL)
+                        consumption.consumed() + "x " + fuelMat.name() + " verbraucht, +" + consumption.chargeAdded()
                                 + " Ladung (global).",
                         NamedTextColor.GREEN));
                 setMenuItems(player);
@@ -333,15 +344,17 @@ public class VacuumSettingsView extends AbstractMenu {
         };
     }
 
-    private int consumeFuel(Player player, Material fuelMat, boolean consumeAll) {
+    private FuelConsumption consumeFuel(Player player, Material fuelMat, boolean consumeAll, int chargePerFuel) {
         ItemStack cursor = player.getItemOnCursor();
+        List<ItemStack> remainders = new ArrayList<>();
         if (cursor != null && cursor.getType() == fuelMat && cursor.getAmount() > 0) {
             int taken = consumeAll ? cursor.getAmount() : 1;
             cursor.setAmount(cursor.getAmount() - taken);
             if (cursor.getAmount() <= 0) {
                 player.setItemOnCursor(null);
             }
-            return taken;
+            addRemainders(remainders, fuelMat, taken);
+            return new FuelConsumption(taken, taken * chargePerFuel, remainders);
         }
 
         int remaining = consumeAll ? Integer.MAX_VALUE : 1;
@@ -356,12 +369,45 @@ public class VacuumSettingsView extends AbstractMenu {
             stack.setAmount(stack.getAmount() - take);
             consumed += take;
             remaining -= take;
+            addRemainders(remainders, fuelMat, take);
             if (stack.getAmount() <= 0) {
                 contents[i] = null;
             }
         }
         player.getInventory().setContents(contents);
-        return consumed;
+        return new FuelConsumption(consumed, consumed * chargePerFuel, remainders);
+    }
+
+    private void addRemainders(List<ItemStack> remainders, Material fuelMat, int consumed) {
+        Material remainderType = fuelMat.getCraftingRemainingItem();
+        if (remainderType == null || remainderType == Material.AIR || consumed <= 0) {
+            return;
+        }
+        remainders.add(new ItemStack(remainderType, consumed));
+    }
+
+    private void addRemainderItems(Player player, List<ItemStack> remainders) {
+        for (ItemStack remainder : remainders) {
+            if (remainder == null || remainder.getType() == Material.AIR || remainder.getAmount() <= 0) {
+                continue;
+            }
+            Map<Integer, ItemStack> overflow = player.getInventory().addItem(remainder);
+            for (ItemStack overflowItem : overflow.values()) {
+                player.getWorld().dropItemNaturally(player.getLocation(), overflowItem);
+            }
+        }
+    }
+
+    private int getChargeForFuel(Material material) {
+        if (material == null) {
+            return 0;
+        }
+        ItemType itemType = material.asItemType();
+        if (itemType == null || !itemType.isFuel()) {
+            return 0;
+        }
+        int burnDuration = itemType.getBurnDuration();
+        return burnDuration <= 0 ? 0 : burnDuration / 20;
     }
 
     private ItemStack createSimpleItem(Material material, String name) {
@@ -402,6 +448,9 @@ public class VacuumSettingsView extends AbstractMenu {
 
     private enum Axis {
         X, Y, Z
+    }
+
+    private record FuelConsumption(int consumed, int chargeAdded, List<ItemStack> remainders) {
     }
 }
 

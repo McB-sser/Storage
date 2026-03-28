@@ -202,8 +202,7 @@ public class QuickSlotsView extends AbstractMenu {
         PlayerLager lager = plugin.getLagerManager().getLager(storageOwner);
 
         if (clickType == ClickType.MIDDLE
-                || (clickedItem != null && (clickedItem.getType() == Material.GRAY_STAINED_GLASS_PANE
-                        || clickedItem.getType() == Material.BLACK_STAINED_GLASS_PANE))) {
+                || (clickedItem != null && isEmptyQuickSlotPlaceholder(clickedItem.getType()))) {
             ItemStack cursor = player.getItemOnCursor();
             if (cursor.getType() != Material.AIR) {
                 settings.getQuickSlots().put(slot, cursor.getType().name());
@@ -219,8 +218,7 @@ public class QuickSlotsView extends AbstractMenu {
         }
 
         if (clickType == ClickType.SHIFT_RIGHT && clickedItem != null
-                && clickedItem.getType() != Material.GRAY_STAINED_GLASS_PANE
-                && clickedItem.getType() != Material.BLACK_STAINED_GLASS_PANE) {
+                && !isEmptyQuickSlotPlaceholder(clickedItem.getType())) {
             settings.getQuickSlots().remove(slot);
             plugin.getLagerManager().saveShulkerSettings(shulkerId);
             player.sendMessage(Component.text("Slot " + (slot + 1) + " geleert.", NamedTextColor.YELLOW));
@@ -384,6 +382,12 @@ public class QuickSlotsView extends AbstractMenu {
         plugin.getLagerManager().saveShulkerSettings(shulkerId);
         player.sendMessage(Component.text("Schnellzugriffbelegung geleert.", NamedTextColor.GREEN));
         setMenuItems(player);
+    }
+
+    private boolean isEmptyQuickSlotPlaceholder(Material material) {
+        return material == Material.GRAY_STAINED_GLASS_PANE
+                || material == Material.BLACK_STAINED_GLASS_PANE
+                || material == Material.LIME_STAINED_GLASS_PANE;
     }
 
     private ItemStack createQuickSlotItem(Material material, int count, String... loreLines) {
