@@ -33,7 +33,7 @@ import org.bukkit.scoreboard.Team;
 public final class StorageSidebar {
     private static final String OBJECTIVE_NAME = "storage_lager";
     private static final int QUICK_ROW_SIZE = 9;
-    private static final int TOTAL_LINES = QUICK_ROW_SIZE + 4;
+    private static final int TOTAL_LINES = QUICK_ROW_SIZE + 6;
     private static final TextColor TITLE_ORANGE = TextColor.color(0xFFAA00);
     private static final NamedTextColor INFO_GREEN = NamedTextColor.GREEN;
 
@@ -206,6 +206,28 @@ public final class StorageSidebar {
 
     private List<RenderedLine> buildLines(HeldStorage heldStorage) {
         List<RenderedLine> lines = new ArrayList<>(TOTAL_LINES);
+        int freeCapacity = Math.max(0, heldStorage.lager().getCapacity() - heldStorage.lager().getUsedAmount());
+        int freeSlots = Math.max(0, heldStorage.lager().getUnlockedSlots() - heldStorage.lager().getItems().size());
+
+        lines.add(new RenderedLine(
+                "header_spacer",
+                Component.text("  ")
+        ));
+        lines.add(new RenderedLine(
+                "free_capacity:" + freeCapacity,
+                Component.text("Freier Platz: ", NamedTextColor.YELLOW)
+                        .append(Component.text(freeCapacity, NamedTextColor.WHITE))
+        ));
+        lines.add(new RenderedLine(
+                "free_slots:" + freeSlots,
+                Component.text("Freie Slots: ", NamedTextColor.YELLOW)
+                        .append(Component.text(freeSlots, NamedTextColor.WHITE))
+        ));
+        lines.add(new RenderedLine(
+                "header_info_spacer",
+                Component.text("   ")
+        ));
+
         for (int index = 0; index < QUICK_ROW_SIZE; index++) {
             int inventorySlot = 9 + index;
             int displaySlot = index + 1;
@@ -218,28 +240,15 @@ public final class StorageSidebar {
             int amount = heldStorage.lager().getAmountByMaterial(material);
             lines.add(new RenderedLine(
                 "slot:" + displaySlot + ":" + material.name() + ":" + amount,
-                    Component.text(displaySlot + ". ", NamedTextColor.GREEN)
-                            .append(Component.translatable(material.translationKey()).color(NamedTextColor.WHITE))
-                            .append(Component.text(" " + amount, NamedTextColor.YELLOW))
+                    Component.text(displaySlot + ". ", NamedTextColor.GOLD)
+                            .append(Component.translatable(material.translationKey()).color(NamedTextColor.GREEN))
+                            .append(Component.text(" " + amount, NamedTextColor.WHITE))
             ));
         }
 
         lines.add(new RenderedLine(
                 "spacer",
                 Component.text(" ")
-        ));
-
-        int freeCapacity = Math.max(0, heldStorage.lager().getCapacity() - heldStorage.lager().getUsedAmount());
-        int freeSlots = Math.max(0, heldStorage.lager().getUnlockedSlots() - heldStorage.lager().getItems().size());
-        lines.add(new RenderedLine(
-                "free_capacity:" + freeCapacity,
-                Component.text("Freier Platz: ", NamedTextColor.WHITE)
-                        .append(Component.text(freeCapacity, NamedTextColor.YELLOW))
-        ));
-        lines.add(new RenderedLine(
-                "free_slots:" + freeSlots,
-                Component.text("Freie Slots: ", NamedTextColor.WHITE)
-                        .append(Component.text(freeSlots, NamedTextColor.YELLOW))
         ));
         lines.add(new RenderedLine(
                 buildStatusKey(heldStorage.settings()),
@@ -265,24 +274,24 @@ public final class StorageSidebar {
 
     private Component buildStatusLine(ShulkerSettings settings) {
         return Component.text()
-                .append(Component.text("V", NamedTextColor.WHITE))
+                .append(Component.text("V", NamedTextColor.GOLD))
                 .append(stateDot(settings.isVacuumEnabled()))
-                .append(Component.text("F", NamedTextColor.WHITE))
+                .append(Component.text("F", NamedTextColor.GOLD))
                 .append(stateDot(settings.isVacuumFilterEnabled()))
                 .append(Component.text(":"))
                 .append(Component.text(buildFilterModeShort(settings), NamedTextColor.YELLOW))
                 .append(Component.text(" "))
-                .append(Component.text("M:", NamedTextColor.WHITE))
+                .append(Component.text("M:", NamedTextColor.GOLD))
                 .append(Component.text(buildRangeModeShort(settings), NamedTextColor.YELLOW))
                 .append(Component.text(" ", NamedTextColor.WHITE))
                 .append(Component.text("|", NamedTextColor.GRAY))
                 .append(Component.text(" "))
-                .append(Component.text("\u2b07", NamedTextColor.WHITE))
+                .append(Component.text("\u2b07", NamedTextColor.GOLD))
                 .append(stateDot(settings.isAutoStore()))
                 .append(Component.text(" ", NamedTextColor.WHITE))
                 .append(Component.text("|", NamedTextColor.GRAY))
                 .append(Component.text(" "))
-                .append(Component.text("R", NamedTextColor.WHITE))
+                .append(Component.text("R", NamedTextColor.GOLD))
                 .append(stateDot(settings.isShulkerRefillEnabled()))
                 .build();
     }
