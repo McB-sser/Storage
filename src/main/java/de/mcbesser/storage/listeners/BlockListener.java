@@ -8,39 +8,65 @@ import de.mcbesser.storage.models.ShulkerSettings;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
+import org.bukkit.Chunk;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockState;
 import org.bukkit.block.Container;
 import org.bukkit.block.ShulkerBox;
+import org.bukkit.block.data.Directional;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockDispenseEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.inventory.InventoryMoveItemEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.world.ChunkLoadEvent;
+import org.bukkit.event.world.WorldLoadEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.entity.HumanEntity;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.scheduler.BukkitTask;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 public class BlockListener implements Listener {
     private final Storage plugin;
     private final NamespacedKey ownerKey;
+    private final Map<UUID, TrackedShulker> trackedShulkers = new HashMap<>();
+    private final BukkitTask automationTask;
 
     public BlockListener(Storage plugin) {
         this.plugin = plugin;
         this.ownerKey = new NamespacedKey(plugin, "owner");
+        this.automationTask = Bukkit.getScheduler().runTaskTimer(plugin, this::tickTrackedShulkers, 10L, 10L);
+        Bukkit.getScheduler().runTask(plugin, (Runnable) this::scanLoadedChunks);
+    }
+
+    @EventHandler
+    public void onWorldLoad(WorldLoadEvent event) {
+        Bukkit.getScheduler().runTask(plugin, () -> scanLoadedChunks(event.getWorld().getLoadedChunks()));
+    }
+
+    @EventHandler
+    public void onChunkLoad(ChunkLoadEvent event) {
+        scanChunk(event.getChunk());
     }
 
     @EventHandler
@@ -104,7 +130,9 @@ public class BlockListener implements Listener {
             ownerFromUuid = event.getPlayer().getUniqueId();
         }
         final UUID ownerForAutomation = ownerFromUuid;
-        Bukkit.getScheduler().runTaskLater(plugin, () -> processShulkerAutomation(shulker, ownerForAutomation, shulkerUuid),
+        Location placedLocation = shulker.getLocation();
+        trackedShulkers.put(shulkerUuid, new TrackedShulker(placedLocation, ownerForAutomation));
+        Bukkit.getScheduler().runTaskLater(plugin, () -> processShulkerAutomation(placedLocation, ownerForAutomation, shulkerUuid),
                 1L);
     }
 
@@ -167,6 +195,7 @@ public class BlockListener implements Listener {
                     drop.setItemMeta(meta);
                 }
                 block.getWorld().dropItemNaturally(block.getLocation(), drop);
+                trackedShulkers.remove(UUID.fromString(id));
                 return;
             }
         }
@@ -378,6 +407,24 @@ public class BlockListener implements Listener {
     }
 
     @EventHandler
+    public void onInventoryDrag(InventoryDragEvent event) {
+        if (event.getInventory().getType() != InventoryType.SHULKER_BOX) {
+            return;
+        }
+        if (!(event.getInventory().getHolder() instanceof ShulkerBox shulker)) {
+            return;
+        }
+
+        int topSize = event.getInventory().getSize();
+        for (int rawSlot : event.getRawSlots()) {
+            if (rawSlot < topSize) {
+                scheduleAutomation(shulker, 1L);
+                return;
+            }
+        }
+    }
+
+    @EventHandler
     public void onInventoryClose(InventoryCloseEvent event) {
         if (event.getInventory().getType() != InventoryType.SHULKER_BOX) {
             return;
@@ -397,6 +444,18 @@ public class BlockListener implements Listener {
         }
     }
 
+    @EventHandler
+    public void onBlockDispense(BlockDispenseEvent event) {
+        if (!(event.getBlock().getBlockData() instanceof Directional directional)) {
+            return;
+        }
+
+        Block targetBlock = event.getBlock().getRelative(directional.getFacing());
+        if (targetBlock.getState() instanceof ShulkerBox shulker) {
+            scheduleAutomation(shulker, 2L);
+        }
+    }
+
     private void scheduleAutomation(ShulkerBox shulker, long delay) {
         String id = shulker.getPersistentDataContainer().get(RecipeManager.SHULKER_KEY, PersistentDataType.STRING);
         String ownerUuid = shulker.getPersistentDataContainer().get(ownerKey, PersistentDataType.STRING);
@@ -406,10 +465,103 @@ public class BlockListener implements Listener {
 
         UUID ownerFromUuid = UUID.fromString(ownerUuid);
         UUID shulkerId = UUID.fromString(id);
-        Bukkit.getScheduler().runTaskLater(plugin, () -> processShulkerAutomation(shulker, ownerFromUuid, shulkerId), delay);
+        Location location = shulker.getLocation();
+        trackedShulkers.put(shulkerId, new TrackedShulker(location, ownerFromUuid));
+        Bukkit.getScheduler().runTaskLater(plugin, () -> processShulkerAutomation(location, ownerFromUuid, shulkerId), delay);
     }
 
-    private void processShulkerAutomation(ShulkerBox shulker, UUID owner, UUID shulkerId) {
+    private void scanLoadedChunks() {
+        for (org.bukkit.World world : Bukkit.getWorlds()) {
+            scanLoadedChunks(world.getLoadedChunks());
+        }
+    }
+
+    private void scanLoadedChunks(Chunk[] chunks) {
+        for (Chunk chunk : chunks) {
+            scanChunk(chunk);
+        }
+    }
+
+    private void scanChunk(Chunk chunk) {
+        for (BlockState state : chunk.getTileEntities()) {
+            if (!(state instanceof ShulkerBox shulker)) {
+                continue;
+            }
+
+            String id = shulker.getPersistentDataContainer().get(RecipeManager.SHULKER_KEY, PersistentDataType.STRING);
+            String ownerUuid = shulker.getPersistentDataContainer().get(ownerKey, PersistentDataType.STRING);
+            if (id == null || ownerUuid == null || ownerUuid.isBlank()) {
+                continue;
+            }
+
+            UUID shulkerId;
+            UUID owner;
+            try {
+                shulkerId = UUID.fromString(id);
+                owner = UUID.fromString(ownerUuid);
+            } catch (IllegalArgumentException ignored) {
+                continue;
+            }
+
+            trackedShulkers.put(shulkerId, new TrackedShulker(shulker.getLocation(), owner));
+        }
+    }
+
+    private void tickTrackedShulkers() {
+        if (trackedShulkers.isEmpty()) {
+            return;
+        }
+
+        List<UUID> toRemove = new ArrayList<>();
+        for (Map.Entry<UUID, TrackedShulker> entry : trackedShulkers.entrySet()) {
+            UUID shulkerId = entry.getKey();
+            TrackedShulker tracked = entry.getValue();
+
+            if (tracked.location() == null || tracked.location().getWorld() == null) {
+                toRemove.add(shulkerId);
+                continue;
+            }
+
+            Block block = tracked.location().getBlock();
+            if (!(block.getState() instanceof ShulkerBox shulker)) {
+                toRemove.add(shulkerId);
+                continue;
+            }
+
+            String currentId = shulker.getPersistentDataContainer().get(RecipeManager.SHULKER_KEY, PersistentDataType.STRING);
+            if (currentId == null || !shulkerId.toString().equals(currentId)) {
+                toRemove.add(shulkerId);
+                continue;
+            }
+
+            ShulkerSettings settings = plugin.getLagerManager().getShulkerSettings(shulkerId);
+            if (!settings.isShulkerRefillEnabled()) {
+                continue;
+            }
+
+            processShulkerAutomation(tracked.location(), tracked.owner(), shulkerId);
+        }
+
+        for (UUID shulkerId : toRemove) {
+            trackedShulkers.remove(shulkerId);
+        }
+    }
+
+    private void processShulkerAutomation(Location location, UUID owner, UUID shulkerId) {
+        if (location == null || location.getWorld() == null) {
+            return;
+        }
+
+        Block block = location.getBlock();
+        if (!(block.getState() instanceof ShulkerBox shulker)) {
+            return;
+        }
+
+        String currentId = shulker.getPersistentDataContainer().get(RecipeManager.SHULKER_KEY, PersistentDataType.STRING);
+        if (currentId == null || !shulkerId.toString().equals(currentId)) {
+            return;
+        }
+
         ShulkerSettings settings = plugin.getLagerManager().getShulkerSettings(shulkerId);
         if (!settings.isShulkerRefillEnabled()) {
             return;
@@ -423,7 +575,7 @@ public class BlockListener implements Listener {
         Inventory inv = shulker.getInventory();
         boolean changed = false;
         int reserveSlots = 5;
-        int refillLimit = Math.max(0, inv.getSize() - reserveSlots); // keep last 5 slots free
+        int refillLimit = Math.max(0, inv.getSize() - reserveSlots);
 
         for (int i = 0; i < inv.getSize(); i++) {
             ItemStack item = inv.getItem(i);
@@ -478,7 +630,15 @@ public class BlockListener implements Listener {
         }
 
         if (changed) {
+            for (HumanEntity viewer : inv.getViewers()) {
+                if (viewer instanceof Player player) {
+                    player.updateInventory();
+                }
+            }
             plugin.getLagerManager().saveLager(owner);
         }
+    }
+
+    private record TrackedShulker(Location location, UUID owner) {
     }
 }
