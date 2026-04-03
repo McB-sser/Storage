@@ -508,6 +508,10 @@ public class LagerManager {
     }
 
     public int addItemToLager(UUID playerUuid, UUID shulkerId, ItemStack item) {
+        return addItemToLager(playerUuid, shulkerId, item, true);
+    }
+
+    public int addItemToLager(UUID playerUuid, UUID shulkerId, ItemStack item, boolean saveImmediately) {
         if (item == null || item.getType().isAir()) {
             return 0;
         }
@@ -519,7 +523,7 @@ public class LagerManager {
         PlayerLager lager = getLager(playerUuid);
         int added = lager.addItemWithLimits(item, lager.getUnlockedSlots(), lager.getCapacity());
 
-        if (added > 0) {
+        if (added > 0 && saveImmediately) {
             saveLager(playerUuid);
         }
         return added;

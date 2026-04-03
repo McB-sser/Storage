@@ -379,6 +379,20 @@ public class BlockListener implements Listener {
                 }
                 plugin.getLagerManager().saveShulkerSettings(shulkerUuid);
             }
+            UUID automationOwner = owner;
+            if (automationOwner == null) {
+                String settingsOwner = settings.getOwnerUuid();
+                if (settingsOwner != null && !settingsOwner.isBlank()) {
+                    try {
+                        automationOwner = UUID.fromString(settingsOwner);
+                    } catch (IllegalArgumentException ignored) {
+                        automationOwner = player.getUniqueId();
+                    }
+                } else {
+                    automationOwner = player.getUniqueId();
+                }
+            }
+            processShulkerAutomation(block.getLocation(), automationOwner, shulkerUuid);
             new QuickSlotsView(plugin, shulkerUuid).open(player);
         } else {
             player.sendMessage(Component.text("Du hast keine Berechtigung f\u00fcr diesen Lager-Shulker!",
@@ -582,11 +596,12 @@ public class BlockListener implements Listener {
             if (item == null || item.getType() == Material.AIR) {
                 continue;
             }
-            if (refillMat != null && item.getType() == refillMat && i < refillLimit) {
+            boolean refillSlot = i < refillLimit;
+            if (refillSlot && refillMat != null && item.getType() == refillMat) {
                 continue;
             }
 
-            int added = plugin.getLagerManager().addItemToLager(owner, shulkerId, item);
+            int added = plugin.getLagerManager().addItemToLager(owner, shulkerId, item, false);
             if (added > 0) {
                 int remaining = item.getAmount() - added;
                 if (remaining <= 0) {
@@ -629,6 +644,40 @@ public class BlockListener implements Listener {
             }
         }
 
+        for (int i = refillLimit; i < inv.getSize(); i++) {
+            ItemStack slotItem = inv.getItem(i);
+            if (slotItem == null || slotItem.getType() == Material.AIR) {
+                continue;
+            }
+
+            if (refillMat != null && slotItem.getType() == refillMat) {
+                int remaining = moveRefillItemIntoManagedArea(inv, slotItem, refillMat, refillLimit);
+                if (remaining != slotItem.getAmount()) {
+                    changed = true;
+                    if (remaining <= 0) {
+                        inv.setItem(i, null);
+                        continue;
+                    }
+                    slotItem.setAmount(remaining);
+                }
+            }
+
+            int added = plugin.getLagerManager().addItemToLager(owner, shulkerId, slotItem, false);
+            if (added > 0) {
+                int remaining = slotItem.getAmount() - added;
+                changed = true;
+                if (remaining <= 0) {
+                    inv.setItem(i, null);
+                    continue;
+                }
+                slotItem.setAmount(remaining);
+            }
+
+            if (slotItem.getType() == Material.AIR || slotItem.getAmount() <= 0) {
+                inv.setItem(i, null);
+            }
+        }
+
         if (changed) {
             for (HumanEntity viewer : inv.getViewers()) {
                 if (viewer instanceof Player player) {
@@ -637,6 +686,42 @@ public class BlockListener implements Listener {
             }
             plugin.getLagerManager().saveLager(owner);
         }
+    }
+
+    private int moveRefillItemIntoManagedArea(Inventory inv, ItemStack source, Material refillMat, int refillLimit) {
+        int remaining = source.getAmount();
+        if (remaining <= 0 || refillLimit <= 0) {
+            return remaining;
+        }
+
+        for (int i = 0; i < refillLimit && remaining > 0; i++) {
+            ItemStack target = inv.getItem(i);
+            if (target == null || target.getType() == Material.AIR || target.getType() != refillMat) {
+                continue;
+            }
+
+            int free = refillMat.getMaxStackSize() - target.getAmount();
+            if (free <= 0) {
+                continue;
+            }
+
+            int moved = Math.min(free, remaining);
+            target.setAmount(target.getAmount() + moved);
+            remaining -= moved;
+        }
+
+        for (int i = 0; i < refillLimit && remaining > 0; i++) {
+            ItemStack target = inv.getItem(i);
+            if (target != null && target.getType() != Material.AIR) {
+                continue;
+            }
+
+            int moved = Math.min(refillMat.getMaxStackSize(), remaining);
+            inv.setItem(i, new ItemStack(refillMat, moved));
+            remaining -= moved;
+        }
+
+        return remaining;
     }
 
     private record TrackedShulker(Location location, UUID owner) {
