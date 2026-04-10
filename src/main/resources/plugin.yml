@@ -1,4 +1,4 @@
-name: Storage
+﻿name: Storage
 version: 1.0
 main: de.mcbesser.storage.Storage
 api-version: '1.20'

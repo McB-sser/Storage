@@ -1,4 +1,4 @@
-package de.mcbesser.storage.managers;
+﻿package de.mcbesser.storage.managers;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -165,7 +165,7 @@ public class LagerManager {
                             + "player_uuid VARCHAR(36) PRIMARY KEY,"
                             + "unlocked_slots INT NOT NULL,"
                             + "capacity INT NOT NULL,"
-                            + "vacuum_fuel_material VARCHAR(64) NULL,"
+                    + "vacuum_fuel_material VARCHAR(64) NULL,"
                             + "vacuum_charge INT NOT NULL,"
                             + "stored_exp INT NOT NULL,"
                             + "trusted_players_json LONGTEXT NULL,"
@@ -209,10 +209,10 @@ public class LagerManager {
             return true;
         } catch (SQLException e) {
             if (!mysqlEnabled) {
-                plugin.getLogger().log(Level.SEVERE, "MySQL Verbindung nicht verfuegbar", e);
+                plugin.getLogger().log(Level.SEVERE, "MySQL Verbindung nicht verf\u00fcgbar", e);
                 return false;
             }
-            plugin.getLogger().log(Level.WARNING, "MySQL Verbindung ungueltig, reconnect wird versucht", e);
+            plugin.getLogger().log(Level.WARNING, "MySQL Verbindung ung\u00fcltig, reconnect wird versucht", e);
             return connectMySql();
         }
     }
@@ -232,10 +232,10 @@ public class LagerManager {
             return nitritePlayers != null && nitriteShulkers != null;
         } catch (Exception e) {
             if (!nitriteEnabled) {
-                plugin.getLogger().log(Level.SEVERE, "Nitrite nicht verfuegbar", e);
+                plugin.getLogger().log(Level.SEVERE, "Nitrite nicht verf\u00fcgbar", e);
                 return false;
             }
-            plugin.getLogger().log(Level.WARNING, "Nitrite ungueltig, Reconnect wird versucht", e);
+            plugin.getLogger().log(Level.WARNING, "Nitrite ung\u00fcltig, Reconnect wird versucht", e);
             closeNitrite();
             return connectNitrite();
         }
@@ -384,7 +384,7 @@ public class LagerManager {
     }
 
     private PlayerLager loadLagerMySqlStructured(UUID playerUuid) {
-        String metaSql = "SELECT unlocked_slots, capacity, vacuum_fuel_material, vacuum_charge, stored_exp, trusted_players_json "
+            String metaSql = "SELECT unlocked_slots, capacity, vacuum_fuel_material, vacuum_charge, stored_exp, trusted_players_json "
                 + "FROM lager_players_meta WHERE player_uuid = ?";
 
         try (PreparedStatement metaPs = mysqlConnection.prepareStatement(metaSql)) {

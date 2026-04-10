@@ -1,4 +1,4 @@
-package de.mcbesser.storage.gui;
+﻿package de.mcbesser.storage.gui;
 
 import de.mcbesser.storage.Storage;
 import de.mcbesser.storage.models.ItemCategory;
@@ -153,7 +153,7 @@ public class QuickSlotsView extends AbstractMenu {
                 "Mit Cursor-Item: nur dieses Item einlagern",
                 "Ohne Cursor-Item: Hauptinventar einlagern"));
         inventory.setItem(50, createItemWithLore(Material.PLAYER_HEAD, "Spieler hinzuf\u00fcgen",
-                "Vertrauensliste f\u00fcr dieses Lager \u00f6ffnen"));
+                "Vertra\u00fcnsliste f\u00fcr dieses Lager \u00f6ffnen"));
         inventory.setItem(51, createItemWithLore(Material.PINK_DYE, "Farbe w\u00e4hlen",
                 "Shulker-Farbe konfigurieren"));
         inventory.setItem(52, createItemWithLore(Material.EXPERIENCE_BOTTLE, "EXP-Speicher",

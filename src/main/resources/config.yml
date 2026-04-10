@@ -1,4 +1,4 @@
-storage:
+﻿storage:
   mysql:
     # Wenn deaktiviert, nutzt Storage automatisch die lokale Nitrite-Datenbank.
     enabled: false

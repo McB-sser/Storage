@@ -1,4 +1,4 @@
-package de.mcbesser.storage.listeners;
+﻿package de.mcbesser.storage.listeners;
 
 import de.mcbesser.storage.Storage;
 import de.mcbesser.storage.gui.AbstractMenu;
@@ -96,7 +96,7 @@ public class AutoFillListener implements Listener {
             if (inserted > 0) {
                 lager.removeByMaterial(mat, inserted);
                 plugin.getLagerManager().saveLager(player.getUniqueId());
-                player.sendMessage("Autom. Nachfuell-Logik: " + inserted + "x " + mat.name() + " entnommen.");
+                player.sendMessage("Autom. Nachf\u00fcll-Logik: " + inserted + "x " + mat.name() + " entnommen.");
             }
         }
     }

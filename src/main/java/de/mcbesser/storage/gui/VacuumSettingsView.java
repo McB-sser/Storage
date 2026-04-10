@@ -1,4 +1,4 @@
-package de.mcbesser.storage.gui;
+﻿package de.mcbesser.storage.gui;
 
 import de.mcbesser.storage.Storage;
 import de.mcbesser.storage.models.PlayerLager;
@@ -70,13 +70,13 @@ public class VacuumSettingsView extends AbstractMenu {
                 "Shift-Links: alle passenden verbrauchen",
                 chargePerFuel > 0
                         ? "+" + chargePerFuel + " Ladung pro Brennstoff"
-                        : "Minecraft-Brenndauer /20 wird verwendet"));
+                        : "Minecraft-Brennda\u00fcr /20 wird verwendet"));
         inventory.setItem(8, createItemWithLore(Material.HOPPER_MINECART, "Filtereinstellungen",
                 "Klick: Filterseite \u00f6ffnen"));
 
         String rangeMode = normalizeRangeMode(settings.getVacuumRangeMode());
         inventory.setItem(19, createItemWithLore(Material.COMPARATOR, "Bereichsmodus: " + toModeDisplay(rangeMode),
-                "Klick: naechster Modus",
+                "Klick: n\u00e4chster Modus",
                 "1x1 = nur eigener Chunk",
                 "3x3 = ein Chunk Umkreis"));
         inventory.setItem(20, createItemWithLore(Material.MAP, "Preset 1x1 Chunk",
@@ -118,7 +118,7 @@ public class VacuumSettingsView extends AbstractMenu {
         for (int slot = 36; slot <= 44; slot++) {
             inventory.setItem(slot, createSimpleItem(Material.BLACK_STAINED_GLASS_PANE, ""));
         }
-        inventory.setItem(36, createSimpleItem(Material.ARROW, "Zurueck"));
+        inventory.setItem(36, createSimpleItem(Material.ARROW, "Zur\u00fcck"));
     }
 
     @Override
@@ -139,7 +139,7 @@ public class VacuumSettingsView extends AbstractMenu {
                 ItemStack cursor = player.getItemOnCursor();
                 if (cursor != null && cursor.getType() != Material.AIR) {
                     if (!cursor.getType().isFuel() || getChargeForFuel(cursor.getType()) <= 0) {
-                        player.sendMessage(Component.text("Dieses Item ist kein gueltiger Brennstoff.", NamedTextColor.RED));
+                        player.sendMessage(Component.text("Dieses Item ist kein g\u00fcltiger Brennstoff.", NamedTextColor.RED));
                         return;
                     }
                     lager.setVacuumFuelMaterial(cursor.getType().name());
@@ -157,7 +157,7 @@ public class VacuumSettingsView extends AbstractMenu {
                 Material fuelMat = fuelName != null ? Material.matchMaterial(fuelName) : null;
                 int chargePerFuel = getChargeForFuel(fuelMat);
                 if (fuelMat == null || chargePerFuel <= 0) {
-                    player.sendMessage(Component.text("Kein gueltiger Brennstoff gesetzt.", NamedTextColor.RED));
+                    player.sendMessage(Component.text("Kein g\u00fcltiger Brennstoff gesetzt.", NamedTextColor.RED));
                     return;
                 }
 
