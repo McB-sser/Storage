@@ -1,4 +1,4 @@
-﻿package de.mcbesser.storage.listeners;
+package de.mcbesser.storage.listeners;
 
 import de.mcbesser.storage.Storage;
 import de.mcbesser.storage.gui.AbstractMenu;

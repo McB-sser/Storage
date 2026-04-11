@@ -1,4 +1,4 @@
-﻿package de.mcbesser.storage.managers;
+package de.mcbesser.storage.managers;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;

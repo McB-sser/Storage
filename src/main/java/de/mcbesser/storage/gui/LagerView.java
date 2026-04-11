@@ -1,4 +1,4 @@
-﻿package de.mcbesser.storage.gui;
+package de.mcbesser.storage.gui;
 
 import de.mcbesser.storage.Storage;
 import de.mcbesser.storage.managers.TranslationManager;
