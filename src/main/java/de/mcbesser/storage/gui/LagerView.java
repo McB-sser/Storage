@@ -179,15 +179,15 @@ public class LagerView extends AbstractMenu {
         List<StorageItem> filtered = new ArrayList<>();
         ShulkerSettings settings = plugin.getLagerManager().getShulkerSettings(shulkerId);
 
+        String effectiveQuery = queryText == null ? "" : queryText.trim();
         String query = "";
         String translatedQuery = "";
-        String effectiveQuery = queryText == null ? "" : queryText.trim();
         String normalizedQuery = "";
         boolean useSearch = !effectiveQuery.isEmpty();
         if (useSearch) {
             query = effectiveQuery.toLowerCase().replace(" ", "_");
             translatedQuery = TranslationManager.translatePartial(query).toLowerCase();
-            normalizedQuery = effectiveQuery.toLowerCase().replace(" ", "");
+            normalizedQuery = TranslationManager.normalize(effectiveQuery);
         }
 
         for (StorageItem item : lager.getItems()) {
@@ -207,6 +207,7 @@ public class LagerView extends AbstractMenu {
                 final String loweredEffectiveQuery = effectiveQuery.toLowerCase();
                 final String loweredNormalizedQuery = normalizedQuery;
                 String matName = stack.getType().name().toLowerCase();
+                String normalizedMatName = TranslationManager.normalize(matName);
                 String displayName = "";
                 Set<String> aliases = TranslationManager.getSearchAliases(stack.getType());
                 ItemMeta meta = stack.getItemMeta();
@@ -220,6 +221,7 @@ public class LagerView extends AbstractMenu {
                         // ignore malformed display names
                     }
                 }
+                String normalizedDisplayName = TranslationManager.normalize(displayName);
 
                 boolean aliasMatch = aliases.stream().anyMatch(alias ->
                         alias.contains(loweredQuery)
@@ -229,7 +231,9 @@ public class LagerView extends AbstractMenu {
 
                 if (!(matName.contains(loweredQuery)
                         || matName.contains(loweredTranslatedQuery)
+                        || normalizedMatName.contains(loweredNormalizedQuery)
                         || displayName.contains(loweredEffectiveQuery)
+                        || normalizedDisplayName.contains(loweredNormalizedQuery)
                         || aliasMatch)) {
                     continue;
                 }

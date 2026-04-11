@@ -3,6 +3,7 @@ package de.mcbesser.storage;
 import de.mcbesser.storage.managers.LagerManager;
 import de.mcbesser.storage.managers.RecipeManager;
 import de.mcbesser.storage.managers.ChatPromptManager;
+import de.mcbesser.storage.managers.TranslationManager;
 import de.mcbesser.storage.listeners.MenuListener;
 import de.mcbesser.storage.listeners.MiddleClickStoreListener;
 import de.mcbesser.storage.listeners.PickBlockListener;
@@ -24,6 +25,7 @@ public class Storage extends JavaPlugin {
     public void onEnable() {
         instance = this;
         saveDefaultConfig();
+        TranslationManager.initialize(this);
 
         this.lagerManager = new LagerManager(this);
         this.recipeManager = new RecipeManager(this);
