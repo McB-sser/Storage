@@ -4,14 +4,12 @@ import de.mcbesser.storage.Storage;
 import de.mcbesser.storage.models.ShulkerSettings;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import net.wesjd.anvilgui.AnvilGUI;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -100,25 +98,21 @@ public class RefillSettingsView extends AbstractMenu {
     }
 
     private void openAnvilNumber(Player player, String title, int current, java.util.function.Consumer<Integer> callback) {
-        new AnvilGUI.Builder()
-                .onClick((slot, snapshot) -> {
-                    if (slot != AnvilGUI.Slot.OUTPUT) {
-                        return Collections.emptyList();
-                    }
+        plugin.getChatPromptManager().requestText(
+                player,
+                title,
+                String.valueOf(current),
+                input -> {
                     try {
-                        int val = Integer.parseInt(snapshot.getText());
+                        int val = Integer.parseInt(input.trim());
                         callback.accept(val);
-                        plugin.getServer().getScheduler().runTask(plugin, () -> this.open(player));
-                        return List.of(AnvilGUI.ResponseAction.close());
                     } catch (NumberFormatException e) {
-                        return Collections.emptyList();
+                        player.sendMessage(Component.text("Bitte gib eine gueltige Zahl ein.", NamedTextColor.RED));
                     }
-                })
-                .text(String.valueOf(current))
-                .itemLeft(new ItemStack(Material.PAPER))
-                .title(title)
-                .plugin(plugin)
-                .open(player);
+                    this.open(player);
+                },
+                () -> this.open(player)
+        );
     }
 
     private ItemStack createItem(Material material, String name) {

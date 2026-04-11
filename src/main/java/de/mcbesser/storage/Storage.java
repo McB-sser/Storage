@@ -2,6 +2,7 @@ package de.mcbesser.storage;
 
 import de.mcbesser.storage.managers.LagerManager;
 import de.mcbesser.storage.managers.RecipeManager;
+import de.mcbesser.storage.managers.ChatPromptManager;
 import de.mcbesser.storage.listeners.MenuListener;
 import de.mcbesser.storage.listeners.MiddleClickStoreListener;
 import de.mcbesser.storage.listeners.PickBlockListener;
@@ -17,6 +18,7 @@ public class Storage extends JavaPlugin {
     private LagerManager lagerManager;
     private RecipeManager recipeManager;
     private StorageSidebar storageSidebar;
+    private ChatPromptManager chatPromptManager;
 
     @Override
     public void onEnable() {
@@ -26,6 +28,7 @@ public class Storage extends JavaPlugin {
         this.lagerManager = new LagerManager(this);
         this.recipeManager = new RecipeManager(this);
         this.storageSidebar = new StorageSidebar(this);
+        this.chatPromptManager = new ChatPromptManager(this);
         this.recipeManager.registerRecipes();
         getServer().getPluginManager().registerEvents(this.recipeManager, this);
 
@@ -36,6 +39,7 @@ public class Storage extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new PickBlockListener(this), this);
         getServer().getPluginManager().registerEvents(new MiddleClickStoreListener(this), this);
         getServer().getPluginManager().registerEvents(new StorageSidebarListener(this, storageSidebar), this);
+        getServer().getPluginManager().registerEvents(chatPromptManager, this);
         storageSidebar.start();
 
         getLogger().info("Storage erfolgreich aktiviert!");
@@ -63,6 +67,10 @@ public class Storage extends JavaPlugin {
 
     public StorageSidebar getStorageSidebar() {
         return storageSidebar;
+    }
+
+    public ChatPromptManager getChatPromptManager() {
+        return chatPromptManager;
     }
 }
 

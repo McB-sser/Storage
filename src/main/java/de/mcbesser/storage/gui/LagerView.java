@@ -9,19 +9,14 @@ import de.mcbesser.storage.models.StorageItem;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
-import net.wesjd.anvilgui.AnvilGUI;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
-import org.bukkit.event.inventory.InventoryType;
-import org.bukkit.inventory.AnvilInventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.scheduler.BukkitTask;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
@@ -498,58 +493,17 @@ public class LagerView extends AbstractMenu {
     }
 
     private void openSearch(Player player) {
-        final BukkitTask[] liveTask = new BukkitTask[1];
-        new AnvilGUI.Builder()
-                .onClose(state -> {
-                    if (liveTask[0] != null) {
-                        liveTask[0].cancel();
-                    }
-                })
-                .onClick((slot, stateSnapshot) -> {
-                    if (slot == AnvilGUI.Slot.INPUT_LEFT) {
-                        plugin.getServer().getScheduler().runTask(plugin, () -> this.open(player));
-                        return List.of(AnvilGUI.ResponseAction.close());
-                    }
-                    if (slot != AnvilGUI.Slot.OUTPUT) {
-                        return Collections.emptyList();
-                    }
-                    String input = stateSnapshot.getText();
+        plugin.getChatPromptManager().requestText(
+                player,
+                "Suche",
+                searchQuery == null || searchQuery.isBlank() ? "" : searchQuery,
+                input -> {
                     this.searchQuery = input == null ? "" : input.trim();
                     this.page = 0;
-                    plugin.getServer().getScheduler().runTaskLater(plugin, () -> this.open(player), 1L);
-                    return List.of(AnvilGUI.ResponseAction.close());
-                })
-                .text(" ")
-                .itemLeft(new ItemStack(Material.PAPER))
-                .title("Suche")
-                .plugin(plugin)
-                .open(player);
-
-        liveTask[0] = plugin.getServer().getScheduler().runTaskTimer(plugin, () -> {
-            if (!player.isOnline()) {
-                if (liveTask[0] != null) {
-                    liveTask[0].cancel();
-                }
-                return;
-            }
-
-            var view = player.getOpenInventory();
-            if (view == null || view.getTopInventory().getType() != InventoryType.ANVIL
-                    || !view.getTitle().startsWith("Suche")) {
-                if (liveTask[0] != null) {
-                    liveTask[0].cancel();
-                }
-                return;
-            }
-
-            if (view.getTopInventory() instanceof AnvilInventory anvil) {
-                String typed = anvil.getRenameText();
-                int count = countFilteredItemsForQuery(player, typed == null ? "" : typed.trim());
-                anvil.setMaximumRepairCost(Integer.MAX_VALUE);
-                anvil.setRepairCost(count);
-                anvil.setRepairCostAmount(count);
-            }
-        }, 1L, 1L);
+                    this.open(player);
+                },
+                () -> this.open(player)
+        );
     }
 
     private int getInsertableAmount(PlayerInventory inventory, ItemStack target) {

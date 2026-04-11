@@ -5,7 +5,6 @@ import de.mcbesser.storage.models.PlayerLager;
 import de.mcbesser.storage.models.ShulkerSettings;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import net.wesjd.anvilgui.AnvilGUI;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
@@ -15,7 +14,6 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -105,14 +103,16 @@ public class PermissionsMenu extends AbstractMenu {
     }
 
     private void openAddPlayerAnvil(Player player) {
-        new AnvilGUI.Builder()
-                .onClick((slot, snapshot) -> {
-                    if (slot != AnvilGUI.Slot.OUTPUT) {
-                        return Collections.emptyList();
-                    }
-                    String name = snapshot.getText().trim();
+        plugin.getChatPromptManager().requestText(
+                player,
+                "Spieler hinzufuegen",
+                "Spielername",
+                input -> {
+                    String name = input == null ? "" : input.trim();
                     if (name.isEmpty()) {
-                        return Collections.emptyList();
+                        player.sendMessage(Component.text("Bitte gib einen Spielernamen ein.", NamedTextColor.RED));
+                        this.open(player);
+                        return;
                     }
 
                     OfflinePlayer target = resolveKnownPlayerByName(name);
@@ -120,7 +120,8 @@ public class PermissionsMenu extends AbstractMenu {
                         player.sendMessage(Component.text(
                                 "Spieler nicht gefunden. Der Spieler muss mindestens einmal auf dem Server gewesen sein.",
                                 NamedTextColor.RED));
-                        return Collections.emptyList();
+                        this.open(player);
+                        return;
                     }
 
                     UUID ownerUuid = resolveStorageOwner(player);
@@ -128,17 +129,15 @@ public class PermissionsMenu extends AbstractMenu {
                     if (!ownerLager.getTrustedPlayers().contains(target.getUniqueId())) {
                         ownerLager.getTrustedPlayers().add(target.getUniqueId());
                         plugin.getLagerManager().saveLager(ownerUuid);
-                        player.sendMessage(Component.text("Spieler " + name + " hinzugef\u00fcgt.", NamedTextColor.GREEN));
+                        player.sendMessage(Component.text("Spieler " + name + " hinzugefuegt.", NamedTextColor.GREEN));
+                    } else {
+                        player.sendMessage(Component.text("Spieler " + name + " ist bereits berechtigt.", NamedTextColor.YELLOW));
                     }
 
-                    plugin.getServer().getScheduler().runTask(plugin, () -> this.open(player));
-                    return List.of(AnvilGUI.ResponseAction.close());
-                })
-                .text("Spielername...")
-                .itemLeft(new ItemStack(Material.PAPER))
-                .title("Spieler hinzuf\u00fcgen")
-                .plugin(plugin)
-                .open(player);
+                    this.open(player);
+                },
+                () -> this.open(player)
+        );
     }
 
     private OfflinePlayer resolveKnownPlayerByName(String name) {

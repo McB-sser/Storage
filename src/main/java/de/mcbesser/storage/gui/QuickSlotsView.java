@@ -7,7 +7,6 @@ import de.mcbesser.storage.models.ShulkerSettings;
 import de.mcbesser.storage.models.StorageItem;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import net.wesjd.anvilgui.AnvilGUI;
 import org.bukkit.Material;
 import org.bukkit.entity.ExperienceOrb;
 import org.bukkit.entity.Player;
@@ -16,7 +15,6 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.ItemMeta;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -474,15 +472,16 @@ public class QuickSlotsView extends AbstractMenu {
     }
 
     private void openCategoryRenameAnvil(Player player, int category, String currentName) {
-        new AnvilGUI.Builder()
-                .onClick((slot, snapshot) -> {
-                    if (slot != AnvilGUI.Slot.OUTPUT) {
-                        return Collections.emptyList();
-                    }
-
-                    String text = snapshot.getText() != null ? snapshot.getText().trim() : "";
+        plugin.getChatPromptManager().requestText(
+                player,
+                "Kategorie " + category + " Begriff",
+                currentName == null || currentName.isEmpty() ? "Begriff..." : currentName,
+                input -> {
+                    String text = input == null ? "" : input.trim();
                     if (text.isEmpty() || text.equals("Begriff...")) {
-                        return Collections.emptyList();
+                        player.sendMessage(Component.text("Bitte gib einen gueltigen Begriff ein.", NamedTextColor.RED));
+                        this.open(player);
+                        return;
                     }
 
                     ShulkerSettings settings = plugin.getLagerManager().getShulkerSettings(shulkerId);
@@ -490,15 +489,10 @@ public class QuickSlotsView extends AbstractMenu {
                     plugin.getLagerManager().saveShulkerSettings(shulkerId);
                     player.sendMessage(Component.text("Kategorie " + category + " umbenannt zu: " + text,
                             NamedTextColor.GREEN));
-
-                    plugin.getServer().getScheduler().runTask(plugin, () -> this.open(player));
-                    return List.of(AnvilGUI.ResponseAction.close());
-                })
-                .text(currentName == null || currentName.isEmpty() ? "Begriff..." : currentName)
-                .itemLeft(new ItemStack(Material.NAME_TAG))
-                .title("Kategorie " + category + " Begriff")
-                .plugin(plugin)
-                .open(player);
+                    this.open(player);
+                },
+                () -> this.open(player)
+        );
     }
 
     private void dropExperience(Player player, int amount) {
