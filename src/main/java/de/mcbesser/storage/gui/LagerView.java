@@ -19,6 +19,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 public class LagerView extends AbstractMenu {
@@ -181,10 +182,12 @@ public class LagerView extends AbstractMenu {
         String query = "";
         String translatedQuery = "";
         String effectiveQuery = queryText == null ? "" : queryText.trim();
+        String normalizedQuery = "";
         boolean useSearch = !effectiveQuery.isEmpty();
         if (useSearch) {
             query = effectiveQuery.toLowerCase().replace(" ", "_");
             translatedQuery = TranslationManager.translatePartial(query).toLowerCase();
+            normalizedQuery = effectiveQuery.toLowerCase().replace(" ", "");
         }
 
         for (StorageItem item : lager.getItems()) {
@@ -199,8 +202,13 @@ public class LagerView extends AbstractMenu {
             }
 
             if (useSearch) {
+                final String loweredQuery = query;
+                final String loweredTranslatedQuery = translatedQuery;
+                final String loweredEffectiveQuery = effectiveQuery.toLowerCase();
+                final String loweredNormalizedQuery = normalizedQuery;
                 String matName = stack.getType().name().toLowerCase();
                 String displayName = "";
+                Set<String> aliases = TranslationManager.getSearchAliases(stack.getType());
                 ItemMeta meta = stack.getItemMeta();
                 if (meta != null && meta.hasDisplayName()) {
                     try {
@@ -213,8 +221,16 @@ public class LagerView extends AbstractMenu {
                     }
                 }
 
-                if (!(matName.contains(query) || matName.contains(translatedQuery)
-                        || displayName.contains(effectiveQuery.toLowerCase()))) {
+                boolean aliasMatch = aliases.stream().anyMatch(alias ->
+                        alias.contains(loweredQuery)
+                                || alias.contains(loweredTranslatedQuery)
+                                || alias.contains(loweredEffectiveQuery)
+                                || alias.contains(loweredNormalizedQuery));
+
+                if (!(matName.contains(loweredQuery)
+                        || matName.contains(loweredTranslatedQuery)
+                        || displayName.contains(loweredEffectiveQuery)
+                        || aliasMatch)) {
                     continue;
                 }
             }

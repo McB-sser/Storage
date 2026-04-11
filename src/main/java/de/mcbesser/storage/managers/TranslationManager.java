@@ -2,8 +2,10 @@ package de.mcbesser.storage.managers;
 
 import org.bukkit.Material;
 
+import java.util.LinkedHashSet;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 public class TranslationManager {
     private static final Map<String, String> GERMAN_TO_MATERIAL = new HashMap<>();
@@ -102,5 +104,27 @@ public class TranslationManager {
         }
 
         return query;
+    }
+
+    public static Set<String> getSearchAliases(Material material) {
+        Set<String> aliases = new LinkedHashSet<>();
+        if (material == null) {
+            return aliases;
+        }
+
+        String materialName = material.name().toLowerCase();
+        aliases.add(materialName);
+        aliases.add(materialName.replace("_", ""));
+        aliases.add(materialName.replace("_", " "));
+
+        for (Map.Entry<String, String> entry : GERMAN_TO_MATERIAL.entrySet()) {
+            String englishSnippet = entry.getValue().toLowerCase();
+            if (materialName.contains(englishSnippet)) {
+                aliases.add(entry.getKey());
+                aliases.add(entry.getKey().replace(" ", ""));
+            }
+        }
+
+        return aliases;
     }
 }
