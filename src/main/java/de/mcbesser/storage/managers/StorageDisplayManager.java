@@ -274,7 +274,7 @@ public final class StorageDisplayManager {
                 display.setRotation(displayYaw, 0f);
             });
 
-            Location amountLocation = offsetLocation(location, xOffset, yOffset - 0.16, 0.02, displayYaw);
+            Location amountLocation = offsetLocation(location, xOffset, yOffset - 0.22, 0.02, displayYaw);
             TextDisplay amountDisplay = amountLocation.getWorld().spawn(amountLocation, TextDisplay.class, display -> {
                 prepareDisplayEntity(display, shulkerId, -1);
                 display.setBillboard(Display.Billboard.FIXED);
@@ -289,7 +289,7 @@ public final class StorageDisplayManager {
 
             if (row >= 1 && row <= 4) {
                 final int quickSlotIndex = (row - 1) * QUICK_SLOT_COLUMNS + column;
-                Location interactionLocation = offsetLocation(location, xOffset, yOffset, 0.0, displayYaw);
+                Location interactionLocation = offsetLocation(location, xOffset, yOffset - 0.27, 0.0, displayYaw);
                 Interaction interaction = interactionLocation.getWorld().spawn(interactionLocation, Interaction.class, hitbox -> {
                     prepareDisplayEntity(hitbox, shulkerId, quickSlotIndex);
                     hitbox.setInteractionWidth(0.50f);
