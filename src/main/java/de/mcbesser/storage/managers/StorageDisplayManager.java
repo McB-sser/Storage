@@ -292,7 +292,7 @@ public final class StorageDisplayManager {
                 Location interactionLocation = offsetLocation(location, xOffset, yOffset - 0.255, 0.0, displayYaw);
                 Interaction interaction = interactionLocation.getWorld().spawn(interactionLocation, Interaction.class, hitbox -> {
                     prepareDisplayEntity(hitbox, shulkerId, quickSlotIndex);
-                    hitbox.setInteractionWidth(0.50f);
+                    hitbox.setInteractionWidth(0.25f);
                     hitbox.setInteractionHeight(0.50f);
                     hitbox.setResponsive(true);
                     hitbox.setRotation(displayYaw, 0f);
