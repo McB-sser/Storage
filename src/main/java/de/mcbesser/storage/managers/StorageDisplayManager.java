@@ -289,7 +289,7 @@ public final class StorageDisplayManager {
 
             if (row >= 1 && row <= 4) {
                 final int quickSlotIndex = (row - 1) * QUICK_SLOT_COLUMNS + column;
-                Location interactionLocation = offsetLocation(location, xOffset, yOffset - 0.27, 0.0, displayYaw);
+                Location interactionLocation = offsetLocation(location, xOffset, yOffset - 0.255, 0.0, displayYaw);
                 Interaction interaction = interactionLocation.getWorld().spawn(interactionLocation, Interaction.class, hitbox -> {
                     prepareDisplayEntity(hitbox, shulkerId, quickSlotIndex);
                     hitbox.setInteractionWidth(0.50f);
