@@ -442,9 +442,8 @@ public final class StorageDisplayManager {
             if (meta != null) {
                 meta.displayName(Component.text(settings.getCategoryName(categoryNumber), NamedTextColor.AQUA));
                 meta.lore(List.of(
-                        Component.text("Funktionsname: Kategorie", NamedTextColor.GRAY),
-                        Component.text("Funktion: Kategorie in der Lageransicht oeffnen", NamedTextColor.GRAY),
-                        Component.text("Linksklick: Kategorie oeffnen", NamedTextColor.GRAY)
+                        Component.text("Funktion: Kategorie in der Lageransicht \u00f6ffnen", NamedTextColor.GRAY),
+                        Component.text("Linksklick: Kategorie \u00f6ffnen", NamedTextColor.GRAY)
                 ));
                 stack.setItemMeta(meta);
             }
@@ -462,9 +461,8 @@ public final class StorageDisplayManager {
                 if (meta != null) {
                     meta.displayName(Component.text("Leerer Schnellzugriffslot " + (quickSlot - 8), NamedTextColor.YELLOW));
                     meta.lore(List.of(
-                            Component.text("Funktionsname: Schnellzugriffslot", NamedTextColor.GRAY),
                             Component.text("Status: Nicht belegt", NamedTextColor.GRAY),
-                            Component.text("Funktion: Keine Entnahme moeglich", NamedTextColor.GRAY)
+                            Component.text("Funktion: Keine Entnahme m\u00f6glich", NamedTextColor.GRAY)
                     ));
                     stack.setItemMeta(meta);
                 }
@@ -477,7 +475,6 @@ public final class StorageDisplayManager {
                 String germanName = TranslationManager.toGermanMaterialName(material);
                 meta.displayName(Component.text(germanName, NamedTextColor.YELLOW));
                 meta.lore(List.of(
-                        Component.text("Funktionsname: Schnellzugriffslot", NamedTextColor.GRAY),
                         Component.text("Name: " + germanName, NamedTextColor.GRAY),
                         Component.text("Menge: " + amount, NamedTextColor.GRAY),
                         Component.text("Linksklick: 1 Item nehmen", NamedTextColor.GRAY),
@@ -504,49 +501,40 @@ public final class StorageDisplayManager {
     private ItemStack createMenuSlotItem(int displaySlot, ShulkerSettings settings, PlayerLager lager) {
         return switch (displaySlot) {
             case 45 -> itemWithLore(Material.HOPPER_MINECART, "Filtereinstellungen",
-                    "Funktionsname: Filtereinstellungen",
-                    "Funktion: Einstellungen fuer den Einsaugfilter oeffnen",
-                    "Linksklick: Filtereinstellungen oeffnen");
+                    "Funktion: Einstellungen f\u00fcr den Einsaugfilter \u00f6ffnen",
+                    "Linksklick: Filtereinstellungen \u00f6ffnen");
             case 46 -> itemWithLore(Material.BLAZE_POWDER, "Einsaugen: " + (settings.isVacuumEnabled() ? "AN" : "AUS"),
-                    "Funktionsname: Einsaugen",
                     "Funktion: Einsaugen ein oder ausschalten",
                     "Linksklick: Einsaugen umschalten",
-                    "Rechtsklick: Einsaug-Einstellungen oeffnen");
+                    "Rechtsklick: Einsaug-Einstellungen \u00f6ffnen");
             case 47 -> itemWithLore(Material.GOLDEN_PICKAXE, "Automatische Einlagerung: " + (settings.isAutoStore() ? "AN" : "AUS"),
-                    "Funktionsname: Automatische Einlagerung",
                     "Funktion: Abgebaute Items direkt einlagern",
                     "Linksklick: Automatische Einlagerung umschalten");
-            case 48 -> itemWithLore(Material.SHULKER_BOX, "Shulker nachfuellen und einlagern: "
+            case 48 -> itemWithLore(Material.SHULKER_BOX, "Shulker nachf\u00fcllen und einlagern: "
                             + (settings.isShulkerRefillEnabled() ? "AN" : "AUS"),
-                    "Funktionsname: Shulker nachfuellen und einlagern",
-                    "Funktion: Nachfuellen und Einlagern umschalten",
+                    "Funktion: Nachf\u00fcllen und Einlagern umschalten",
                     "Linksklick: Funktion umschalten",
-                    "Rechtsklick: Einstellungen oeffnen");
+                    "Rechtsklick: Einstellungen \u00f6ffnen");
             case 49 -> itemWithLore(Material.HOPPER, "Items ins Lager legen",
-                    "Funktionsname: Items ins Lager legen",
                     "Funktion: Items aus dem Inventar einlagern",
                     "Mit Cursor-Item: Dieses Item einlagern",
                     "Ohne Cursor-Item: Hauptinventar einlagern");
             case 50 -> itemWithLore(settings.isDisplayEnabled() ? Material.LIME_DYE : Material.GRAY_DYE,
                     "Display anzeigen: " + (settings.isDisplayEnabled() ? "AN" : "AUS"),
-                    "Funktionsname: Display anzeigen",
                     "Funktion: Display oder Bereich-Partikel steuern",
                     "Linksklick: Anzeige an oder aus",
                     "Rechtsklick: Bereich-Partikel " + (settings.isVacuumRangeParticlesEnabled() ? "ausschalten" : "einschalten"));
-            case 51 -> itemWithLore(Material.PINK_DYE, "Farbe waehlen",
-                    "Funktionsname: Farbe waehlen",
+            case 51 -> itemWithLore(Material.PINK_DYE, "Farbe w\u00e4hlen",
                     "Funktion: Shulker-Farbe konfigurieren",
-                    "Linksklick: Farbmenue oeffnen");
+                    "Linksklick: Farbmen\u00fc \u00f6ffnen");
             case 52 -> itemWithLore(Material.EXPERIENCE_BOTTLE, "Erfahrungsspeicher",
-                    "Funktionsname: Erfahrungsspeicher",
                     "Funktion: Erfahrung einlagern oder entnehmen",
                     "Gespeichert: " + lager.getStoredExp() + " XP",
                     "Linksklick: gesamte Spieler-XP einlagern",
                     "Rechtsklick: 100 XP als Orbs ausgeben");
             case 53 -> itemWithLore(Material.SPYGLASS, "Lager durchsuchen",
-                    "Funktionsname: Lager durchsuchen",
-                    "Funktion: Lageransicht mit Kategorien und Suche oeffnen",
-                    "Linksklick: Lageransicht oeffnen");
+                    "Funktion: Lageransicht mit Kategorien und Suche \u00f6ffnen",
+                    "Linksklick: Lageransicht \u00f6ffnen");
             default -> named(Material.BLACK_STAINED_GLASS_PANE);
         };
     }
@@ -617,7 +605,7 @@ public final class StorageDisplayManager {
                 } else {
                     settings.setShulkerRefillEnabled(!settings.isShulkerRefillEnabled());
                     plugin.getLagerManager().saveShulkerSettings(shulkerId);
-                    player.sendMessage(Component.text("Shulker nachfuellen und einlagern: "
+                    player.sendMessage(Component.text("Shulker nachf\u00fcllen und einlagern: "
                             + (settings.isShulkerRefillEnabled() ? "AN" : "AUS"), NamedTextColor.YELLOW));
                 }
             }

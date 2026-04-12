@@ -7,6 +7,7 @@ import de.mcbesser.storage.models.ShulkerSettings;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -39,6 +40,7 @@ public final class StorageSidebar {
 
     private final Storage plugin;
     private final Map<UUID, BoardState> activeBoards = new HashMap<>();
+    private final Set<UUID> pendingRefreshes = new HashSet<>();
     private BukkitTask refreshTask;
 
     public StorageSidebar(Storage plugin) {
@@ -121,11 +123,24 @@ public final class StorageSidebar {
     }
 
     public void scheduleRefresh(Player player) {
-        Bukkit.getScheduler().runTask(plugin, () -> refresh(player));
+        if (player == null) {
+            return;
+        }
+        UUID playerId = player.getUniqueId();
+        if (!pendingRefreshes.add(playerId)) {
+            return;
+        }
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            pendingRefreshes.remove(playerId);
+            if (player.isOnline()) {
+                refresh(player);
+            }
+        });
     }
 
     public void clear(Player player) {
         UUID uuid = player.getUniqueId();
+        pendingRefreshes.remove(uuid);
         BoardState active = activeBoards.remove(uuid);
         if (active == null) {
             return;
@@ -140,6 +155,7 @@ public final class StorageSidebar {
     }
 
     public void clearAll() {
+        pendingRefreshes.clear();
         for (Player player : Bukkit.getOnlinePlayers()) {
             clear(player);
         }
@@ -274,6 +290,11 @@ public final class StorageSidebar {
 
     private List<RenderedLine> buildHoverLines(
             de.mcbesser.storage.managers.StorageDisplayManager.HoveredDisplayInfo hoveredInfo) {
+        int row = hoveredInfo.displaySlot() / QUICK_ROW_SIZE;
+        if (row == 0 || row == 5) {
+            return buildStructuredHoverLines(hoveredInfo, row == 5);
+        }
+
         List<RenderedLine> lines = new ArrayList<>(TOTAL_LINES);
         String title = hoveredInfo.plainTitle();
         if (title == null || title.isBlank()) {
@@ -310,6 +331,64 @@ public final class StorageSidebar {
         return lines;
     }
 
+    private List<RenderedLine> buildStructuredHoverLines(
+            de.mcbesser.storage.managers.StorageDisplayManager.HoveredDisplayInfo hoveredInfo,
+            boolean statefulTitle) {
+        List<RenderedLine> lines = new ArrayList<>(TOTAL_LINES);
+        String title = hoveredInfo.plainTitle();
+        if (title == null || title.isBlank()) {
+            title = "Slot";
+        }
+
+        lines.add(new RenderedLine("hover_spacer_top", Component.text("  ")));
+        addStructuredTitleLines(lines, title, statefulTitle);
+
+        List<String> descriptionLines = new ArrayList<>();
+        List<String> actionLines = new ArrayList<>();
+        for (String loreLine : hoveredInfo.plainLoreLines(8)) {
+            if (loreLine == null || loreLine.isBlank()) {
+                continue;
+            }
+            if (loreLine.startsWith("Funktion:")) {
+                descriptionLines.add(loreLine.substring("Funktion:".length()).trim());
+            } else {
+                actionLines.add(loreLine);
+            }
+        }
+
+        int lineIndex = lines.size();
+        for (String descriptionLine : descriptionLines) {
+            for (String wrappedLine : wrapText(descriptionLine, 28, 3)) {
+                lines.add(new RenderedLine("hover_desc:" + lineIndex + ":" + wrappedLine,
+                        Component.text(wrappedLine, NamedTextColor.WHITE)));
+                lineIndex++;
+                if (lines.size() >= TOTAL_LINES) {
+                    return lines;
+                }
+            }
+        }
+
+        if (!descriptionLines.isEmpty() && !actionLines.isEmpty() && lines.size() < TOTAL_LINES) {
+            lines.add(new RenderedLine("hover_gap_after_desc", Component.text(" ")));
+        }
+
+        int actionIndex = 0;
+        for (String actionLine : actionLines) {
+            List<String> wrappedLines = wrapText(actionLine, 28, 3);
+            for (int wrappedIndex = 0; wrappedIndex < wrappedLines.size(); wrappedIndex++) {
+                String wrappedLine = wrappedLines.get(wrappedIndex);
+                lines.add(new RenderedLine("hover_action:" + actionIndex + ":" + wrappedIndex + ":" + wrappedLine,
+                        renderHoverLoreLine(actionLine, wrappedLine, wrappedIndex == 0)));
+                actionIndex++;
+                if (lines.size() >= TOTAL_LINES) {
+                    return lines;
+                }
+            }
+        }
+
+        return lines;
+    }
+
     private List<String> wrapText(String text, int maxLength, int maxLines) {
         List<String> lines = new ArrayList<>();
         if (text == null || text.isBlank()) {
@@ -343,11 +422,75 @@ public final class StorageSidebar {
             String prefix = originalLine.substring(0, separatorIndex + 1);
             if (wrappedLine.startsWith(prefix)) {
                 String value = wrappedLine.substring(prefix.length()).trim();
+                NamedTextColor valueColor = NamedTextColor.WHITE;
+                if (isValueLine(prefix)) {
+                    valueColor = INFO_GREEN;
+                } else if (isEnabledState(value)) {
+                    valueColor = NamedTextColor.GREEN;
+                } else if (isDisabledState(value)) {
+                    valueColor = NamedTextColor.RED;
+                }
                 return Component.text(prefix + " ", NamedTextColor.YELLOW)
-                        .append(Component.text(value, NamedTextColor.WHITE));
+                        .append(Component.text(value, valueColor));
             }
         }
-        return Component.text(wrappedLine, NamedTextColor.GRAY);
+        return Component.text(wrappedLine, NamedTextColor.WHITE);
+    }
+
+    private void addStructuredTitleLines(List<RenderedLine> lines, String title, boolean statefulTitle) {
+        if (!statefulTitle) {
+            int titleIndex = 0;
+            for (String wrappedTitle : wrapText(title, 28, 2)) {
+                lines.add(new RenderedLine("hover_title:" + titleIndex + ":" + wrappedTitle,
+                        Component.text(wrappedTitle, TITLE_ORANGE)));
+                titleIndex++;
+            }
+            return;
+        }
+
+        String state = null;
+        String baseTitle = title;
+        int separatorIndex = title.lastIndexOf(':');
+        if (separatorIndex >= 0) {
+            String possibleState = title.substring(separatorIndex + 1).trim();
+            if (isEnabledState(possibleState) || isDisabledState(possibleState)) {
+                state = possibleState;
+                baseTitle = title.substring(0, separatorIndex + 1).trim();
+            }
+        }
+
+        if (state != null && baseTitle.length() + 1 + state.length() <= 28) {
+            lines.add(new RenderedLine("hover_title:0:" + baseTitle + ":" + state,
+                    Component.text(baseTitle + " ", TITLE_ORANGE)
+                            .append(Component.text(state, isEnabledState(state) ? NamedTextColor.GREEN : NamedTextColor.RED))));
+            return;
+        }
+
+        int titleIndex = 0;
+        for (String wrappedTitle : wrapText(baseTitle, 28, 2)) {
+            lines.add(new RenderedLine("hover_title:" + titleIndex + ":" + wrappedTitle,
+                    Component.text(wrappedTitle, TITLE_ORANGE)));
+            titleIndex++;
+        }
+        if (state != null && lines.size() < TOTAL_LINES) {
+            lines.add(new RenderedLine("hover_title_state:" + state,
+                    Component.text(state, isEnabledState(state) ? NamedTextColor.GREEN : NamedTextColor.RED)));
+        }
+    }
+
+    private boolean isValueLine(String prefix) {
+        return "Menge:".equals(prefix)
+                || "Gespeichert:".equals(prefix)
+                || "Freier Platz:".equals(prefix)
+                || "Freie Slots:".equals(prefix);
+    }
+
+    private boolean isEnabledState(String value) {
+        return "AN".equals(value);
+    }
+
+    private boolean isDisabledState(String value) {
+        return "AUS".equals(value);
     }
 
     private String buildStatusKey(ShulkerSettings settings) {
