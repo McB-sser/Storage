@@ -73,7 +73,7 @@ public final class StorageSidebar {
             player.setScoreboard(scoreboard);
         }
 
-        List<RenderedLine> nextLines = buildLines(heldStorage);
+        List<RenderedLine> nextLines = buildLines(player, heldStorage);
         List<String> renderedKeys = boardState.renderedKeys();
         Objective objective = scoreboard.getObjective(OBJECTIVE_NAME);
         if (boardState.initialized()
@@ -153,6 +153,15 @@ public final class StorageSidebar {
     }
 
     private HeldStorage resolveActiveStorage(Player player) {
+        de.mcbesser.storage.managers.StorageDisplayManager.HoveredDisplayInfo hoveredInfo =
+                plugin.getStorageDisplayManager().getHoveredDisplayInfo(player);
+        if (hoveredInfo != null) {
+            HeldStorage storage = buildHeldStorage(player, hoveredInfo.shulkerId().toString());
+            if (storage != null) {
+                return storage;
+            }
+        }
+
         ItemStack hand = player.getInventory().getItemInMainHand();
         if (hand != null && hand.hasItemMeta() && hand.getType().name().contains("SHULKER_BOX")) {
             ItemMeta meta = hand.getItemMeta();
@@ -204,7 +213,13 @@ public final class StorageSidebar {
         return fallbackPlayer.getUniqueId();
     }
 
-    private List<RenderedLine> buildLines(HeldStorage heldStorage) {
+    private List<RenderedLine> buildLines(Player player, HeldStorage heldStorage) {
+        de.mcbesser.storage.managers.StorageDisplayManager.HoveredDisplayInfo hoveredInfo =
+                plugin.getStorageDisplayManager().getHoveredDisplayInfo(player);
+        if (hoveredInfo != null && hoveredInfo.shulkerId().equals(heldStorage.shulkerId())) {
+            return buildHoverLines(hoveredInfo);
+        }
+
         List<RenderedLine> lines = new ArrayList<>(TOTAL_LINES);
         int freeCapacity = Math.max(0, heldStorage.lager().getCapacity() - heldStorage.lager().getUsedAmount());
         int freeSlots = Math.max(0, heldStorage.lager().getUnlockedSlots() - heldStorage.lager().getItems().size());
@@ -255,6 +270,84 @@ public final class StorageSidebar {
                 buildStatusLine(heldStorage.settings())
         ));
         return lines;
+    }
+
+    private List<RenderedLine> buildHoverLines(
+            de.mcbesser.storage.managers.StorageDisplayManager.HoveredDisplayInfo hoveredInfo) {
+        List<RenderedLine> lines = new ArrayList<>(TOTAL_LINES);
+        String title = hoveredInfo.plainTitle();
+        if (title == null || title.isBlank()) {
+            title = "Slot";
+        }
+
+        lines.add(new RenderedLine("hover_spacer_top", Component.text("  ")));
+        int hoverIndex = 0;
+        for (String wrappedTitle : wrapText(title, 28, 2)) {
+            lines.add(new RenderedLine("hover_title:" + hoverIndex + ":" + wrappedTitle,
+                    Component.text(wrappedTitle, NamedTextColor.GOLD)));
+            hoverIndex++;
+        }
+        lines.add(new RenderedLine("hover_spacer_mid", Component.text("   ")));
+
+        List<String> loreLines = hoveredInfo.plainLoreLines(8);
+        if (loreLines.isEmpty()) {
+            lines.add(new RenderedLine("hover_empty", Component.text("Keine Beschreibung", NamedTextColor.GRAY)));
+        } else {
+            int loreIndex = 0;
+            for (String loreLine : loreLines) {
+                List<String> wrappedLines = wrapText(loreLine, 28, 3);
+                for (int wrappedIndex = 0; wrappedIndex < wrappedLines.size(); wrappedIndex++) {
+                    String wrappedLore = wrappedLines.get(wrappedIndex);
+                    lines.add(new RenderedLine("hover_lore:" + loreIndex + ":" + wrappedIndex + ":" + wrappedLore,
+                            renderHoverLoreLine(loreLine, wrappedLore, wrappedIndex == 0)));
+                    loreIndex++;
+                    if (lines.size() >= TOTAL_LINES) {
+                        return lines;
+                    }
+                }
+            }
+        }
+        return lines;
+    }
+
+    private List<String> wrapText(String text, int maxLength, int maxLines) {
+        List<String> lines = new ArrayList<>();
+        if (text == null || text.isBlank()) {
+            return lines;
+        }
+
+        String remaining = text.trim();
+        while (!remaining.isEmpty() && lines.size() < maxLines) {
+            if (remaining.length() <= maxLength) {
+                lines.add(remaining);
+                break;
+            }
+
+            int breakIndex = remaining.lastIndexOf(' ', maxLength);
+            if (breakIndex <= 0) {
+                breakIndex = maxLength;
+            }
+
+            String line = remaining.substring(0, breakIndex).trim();
+            if (!line.isEmpty()) {
+                lines.add(line);
+            }
+            remaining = remaining.substring(Math.min(breakIndex + 1, remaining.length())).trim();
+        }
+        return lines;
+    }
+
+    private Component renderHoverLoreLine(String originalLine, String wrappedLine, boolean firstWrappedLine) {
+        int separatorIndex = originalLine.indexOf(':');
+        if (separatorIndex > 0 && firstWrappedLine) {
+            String prefix = originalLine.substring(0, separatorIndex + 1);
+            if (wrappedLine.startsWith(prefix)) {
+                String value = wrappedLine.substring(prefix.length()).trim();
+                return Component.text(prefix + " ", NamedTextColor.YELLOW)
+                        .append(Component.text(value, NamedTextColor.WHITE));
+            }
+        }
+        return Component.text(wrappedLine, NamedTextColor.GRAY);
     }
 
     private String buildStatusKey(ShulkerSettings settings) {
