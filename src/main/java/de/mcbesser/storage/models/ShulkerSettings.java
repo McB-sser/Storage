@@ -41,6 +41,7 @@ public class ShulkerSettings {
     private int vacuumRangeNegZ;
     private int vacuumRangePosZ;
     private String lagerSortMode;
+    private Boolean displayEnabled;
 
     public ShulkerSettings(UUID shulkerId) {
         this.shulkerId = shulkerId;
@@ -73,6 +74,7 @@ public class ShulkerSettings {
         this.vacuumRangeNegZ = 0;
         this.vacuumRangePosZ = 0;
         this.lagerSortMode = "NAME_ASC";
+        this.displayEnabled = Boolean.FALSE;
 
         // Initialize empty lists for each category
         ensureDefaults();
@@ -358,6 +360,16 @@ public class ShulkerSettings {
         this.lagerSortMode = lagerSortMode;
     }
 
+    public boolean isDisplayEnabled() {
+        ensureDefaults();
+        return Boolean.TRUE.equals(displayEnabled);
+    }
+
+    public void setDisplayEnabled(boolean displayEnabled) {
+        ensureDefaults();
+        this.displayEnabled = displayEnabled;
+    }
+
     public boolean isVacuumItemAllowed(Material material) {
         ensureDefaults();
         if (material == null) {
@@ -499,6 +511,9 @@ public class ShulkerSettings {
         }
         if (lagerSortMode == null || lagerSortMode.isBlank()) {
             lagerSortMode = "NAME_ASC";
+        }
+        if (displayEnabled == null) {
+            displayEnabled = Boolean.FALSE;
         }
     }
 

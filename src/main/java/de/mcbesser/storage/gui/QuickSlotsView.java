@@ -150,8 +150,10 @@ public class QuickSlotsView extends AbstractMenu {
         inventory.setItem(49, createItemWithLore(Material.HOPPER, "Items ins Lager legen",
                 "Mit Cursor-Item: nur dieses Item einlagern",
                 "Ohne Cursor-Item: Hauptinventar einlagern"));
-        inventory.setItem(50, createItemWithLore(Material.PLAYER_HEAD, "Spieler hinzuf\u00fcgen",
-                "Vertra\u00fcnsliste f\u00fcr dieses Lager \u00f6ffnen"));
+        inventory.setItem(50, createItemWithLore(settings.isDisplayEnabled() ? Material.LIME_DYE : Material.GRAY_DYE,
+                "Display anzeigen: " + (settings.isDisplayEnabled() ? "AN" : "AUS"),
+                "Linksklick: Anzeige An/Aus",
+                "Rechtsklick: Bereich-Partikel " + (settings.isVacuumRangeParticlesEnabled() ? "AUS" : "AN")));
         inventory.setItem(51, createItemWithLore(Material.PINK_DYE, "Farbe w\u00e4hlen",
                 "Shulker-Farbe konfigurieren"));
         inventory.setItem(52, createItemWithLore(Material.EXPERIENCE_BOTTLE, "EXP-Speicher",
@@ -336,7 +338,7 @@ public class QuickSlotsView extends AbstractMenu {
                 }
                 setMenuItems(player);
             }
-            case 50 -> new PermissionsMenu(plugin, shulkerId).open(player);
+            case 50 -> handleDisplayButton(player, clickType);
             case 51 -> new ColorMenu(plugin, shulkerId).open(player);
             case 52 -> {
                 UUID storageOwner = resolveStorageOwner(player);
@@ -376,6 +378,25 @@ public class QuickSlotsView extends AbstractMenu {
                 }
             }
         }
+    }
+
+    private void handleDisplayButton(Player player, ClickType clickType) {
+        if (clickType == ClickType.RIGHT || clickType == ClickType.SHIFT_RIGHT) {
+            ShulkerSettings settings = plugin.getLagerManager().getShulkerSettings(shulkerId);
+            settings.setVacuumRangeParticlesEnabled(!settings.isVacuumRangeParticlesEnabled());
+            plugin.getLagerManager().saveShulkerSettings(shulkerId);
+            player.sendMessage(Component.text("Bereich-Partikel: "
+                    + (settings.isVacuumRangeParticlesEnabled() ? "AN" : "AUS"), NamedTextColor.YELLOW));
+            setMenuItems(player);
+            return;
+        }
+
+        ShulkerSettings settings = plugin.getLagerManager().getShulkerSettings(shulkerId);
+        settings.setDisplayEnabled(!settings.isDisplayEnabled());
+        plugin.getLagerManager().saveShulkerSettings(shulkerId);
+        player.sendMessage(Component.text("Display anzeigen: " + (settings.isDisplayEnabled() ? "AN" : "AUS"),
+                NamedTextColor.YELLOW));
+        setMenuItems(player);
     }
 
     private void clearQuickSlots(Player player) {

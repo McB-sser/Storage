@@ -49,12 +49,14 @@ import java.util.UUID;
 public class BlockListener implements Listener {
     private final Storage plugin;
     private final NamespacedKey ownerKey;
+    private final NamespacedKey displayYawKey;
     private final Map<UUID, TrackedShulker> trackedShulkers = new HashMap<>();
     private final BukkitTask automationTask;
 
     public BlockListener(Storage plugin) {
         this.plugin = plugin;
         this.ownerKey = new NamespacedKey(plugin, "owner");
+        this.displayYawKey = new NamespacedKey(plugin, "display_yaw");
         this.automationTask = Bukkit.getScheduler().runTaskTimer(plugin, this::tickTrackedShulkers, 10L, 10L);
         Bukkit.getScheduler().runTask(plugin, (Runnable) this::scanLoadedChunks);
     }
@@ -62,11 +64,17 @@ public class BlockListener implements Listener {
     @EventHandler
     public void onWorldLoad(WorldLoadEvent event) {
         Bukkit.getScheduler().runTask(plugin, () -> scanLoadedChunks(event.getWorld().getLoadedChunks()));
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            for (Chunk chunk : event.getWorld().getLoadedChunks()) {
+                plugin.getStorageDisplayManager().scanChunk(chunk);
+            }
+        });
     }
 
     @EventHandler
     public void onChunkLoad(ChunkLoadEvent event) {
         scanChunk(event.getChunk());
+        plugin.getStorageDisplayManager().scanChunk(event.getChunk());
     }
 
     @EventHandler
@@ -117,9 +125,11 @@ public class BlockListener implements Listener {
         }
         plugin.getLagerManager().saveShulkerSettings(shulkerUuid);
 
+        float displayYaw = blockFaceToYaw(event.getPlayer().getFacing().getOppositeFace());
         shulker.getPersistentDataContainer().set(RecipeManager.SHULKER_KEY, PersistentDataType.STRING, id);
         shulker.getPersistentDataContainer().set(ownerKey, PersistentDataType.STRING,
                 effectiveOwnerUuid);
+        shulker.getPersistentDataContainer().set(displayYawKey, PersistentDataType.FLOAT, displayYaw);
         shulker.customName(Component.text("Lager von: " + effectiveOwnerName, NamedTextColor.GOLD));
         shulker.update();
 
@@ -132,6 +142,7 @@ public class BlockListener implements Listener {
         final UUID ownerForAutomation = ownerFromUuid;
         Location placedLocation = shulker.getLocation();
         trackedShulkers.put(shulkerUuid, new TrackedShulker(placedLocation, ownerForAutomation));
+        plugin.getStorageDisplayManager().trackPlacedShulker(shulkerUuid, placedLocation);
         Bukkit.getScheduler().runTaskLater(plugin, () -> processShulkerAutomation(placedLocation, ownerForAutomation, shulkerUuid),
                 1L);
     }
@@ -196,6 +207,7 @@ public class BlockListener implements Listener {
                 }
                 block.getWorld().dropItemNaturally(block.getLocation(), drop);
                 trackedShulkers.remove(UUID.fromString(id));
+                plugin.getStorageDisplayManager().untrackShulker(UUID.fromString(id));
                 return;
             }
         }
@@ -725,5 +737,15 @@ public class BlockListener implements Listener {
     }
 
     private record TrackedShulker(Location location, UUID owner) {
+    }
+
+    private float blockFaceToYaw(org.bukkit.block.BlockFace face) {
+        return switch (face) {
+            case SOUTH -> 0f;
+            case WEST -> 90f;
+            case NORTH -> 180f;
+            case EAST -> -90f;
+            default -> 0f;
+        };
     }
 }

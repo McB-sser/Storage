@@ -142,7 +142,9 @@ public class LagerView extends AbstractMenu {
 
         inventory.setItem(45, createItem(Material.ARROW, "Zur\u00fcck zum Hauptmen\u00fc"));
         inventory.setItem(46, createItem(Material.NETHERITE_UPGRADE_SMITHING_TEMPLATE, "Upgrades"));
-        inventory.setItem(47, createItem(Material.BLACK_STAINED_GLASS_PANE, ""));
+        inventory.setItem(47, page > 0
+                ? createItemWithLore(Material.ARROW, "Vorherige Seite", "Seite " + page + " von " + totalPages)
+                : createItem(Material.BLACK_STAINED_GLASS_PANE, ""));
         inventory.setItem(48, createItemWithLore(Material.COMPARATOR, "Sortierung",
                 "Aktuell: " + sortMode.getDisplayName(),
                 "Linksklick: n\u00e4chste Sortierung",
@@ -152,23 +154,19 @@ public class LagerView extends AbstractMenu {
                 "Filter: " + getCategoryFilterText(),
                 "Linksklick: n\u00e4chste Kategorie",
                 "Rechtsklick: alle anzeigen"));
-        inventory.setItem(51, createItemWithLore(Material.SPYGLASS, "Suche",
-                "Linksklick: Suche \u00f6ffnen",
-                "Rechtsklick: Suche l\u00f6schen"));
+        inventory.setItem(51, createItemWithLore(Material.PLAYER_HEAD, "Spieler hinzuf\u00fcgen",
+                "Vertra\u00fcnsliste f\u00fcr dieses Lager \u00f6ffnen"));
 
-        if (page > 0) {
-            inventory.setItem(52, createItemWithLore(Material.ARROW, "Vorherige Seite",
-                    "Seite " + page + " von " + totalPages));
+        if (page < totalPages - 1) {
+            inventory.setItem(52, createItemWithLore(Material.ARROW, "N\u00e4chste Seite",
+                    "Seite " + (page + 2) + " von " + totalPages));
         } else {
             inventory.setItem(52, createItem(Material.BLACK_STAINED_GLASS_PANE, ""));
         }
 
-        if (page < totalPages - 1) {
-            inventory.setItem(53, createItemWithLore(Material.ARROW, "N\u00e4chste Seite",
-                    "Seite " + (page + 2) + " von " + totalPages));
-        } else {
-            inventory.setItem(53, createItem(Material.BLACK_STAINED_GLASS_PANE, ""));
-        }
+        inventory.setItem(53, createItemWithLore(Material.SPYGLASS, "Suche",
+                "Linksklick: Suche \u00f6ffnen",
+                "Rechtsklick: Suche l\u00f6schen"));
     }
 
     private List<StorageItem> getFilteredItems(PlayerLager lager) {
@@ -424,20 +422,21 @@ public class LagerView extends AbstractMenu {
         int totalPages = Math.max(1, (int) Math.ceil(filteredItems.size() / 45.0));
 
         switch (slot) {
-            case 52 -> {
+            case 47 -> {
                 if (page > 0) {
                     page--;
                     setMenuItems(player);
                 }
             }
-            case 53 -> {
+            case 52 -> {
                 if (page < totalPages - 1) {
                     page++;
                     setMenuItems(player);
                 }
             }
             case 45 -> new QuickSlotsView(plugin, shulkerId).open(player);
-            case 51 -> {
+            case 51 -> new PermissionsMenu(plugin, shulkerId).open(player);
+            case 53 -> {
                 if (clickType == ClickType.RIGHT || clickType == ClickType.SHIFT_RIGHT) {
                     searchQuery = "";
                     page = 0;
