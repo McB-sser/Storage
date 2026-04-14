@@ -12,6 +12,7 @@ import de.mcbesser.storage.listeners.BlockListener;
 import de.mcbesser.storage.listeners.StorageDisplayListener;
 import de.mcbesser.storage.listeners.StorageSidebarListener;
 import de.mcbesser.storage.listeners.VacuumListener;
+import de.mcbesser.storage.profile.PlayerHeadCache;
 import org.bukkit.plugin.java.JavaPlugin;
 import de.mcbesser.storage.sidebar.StorageSidebar;
 import de.mcbesser.storage.managers.StorageDisplayManager;
@@ -23,6 +24,7 @@ public class Storage extends JavaPlugin {
     private StorageSidebar storageSidebar;
     private StorageDisplayManager storageDisplayManager;
     private ChatPromptManager chatPromptManager;
+    private PlayerHeadCache playerHeadCache;
 
     @Override
     public void onEnable() {
@@ -35,6 +37,7 @@ public class Storage extends JavaPlugin {
         this.storageSidebar = new StorageSidebar(this);
         this.storageDisplayManager = new StorageDisplayManager(this);
         this.chatPromptManager = new ChatPromptManager(this);
+        this.playerHeadCache = new PlayerHeadCache(this, "player-head-cache.yml");
         this.recipeManager.registerRecipes();
         getServer().getPluginManager().registerEvents(this.recipeManager, this);
 
@@ -86,6 +89,10 @@ public class Storage extends JavaPlugin {
 
     public StorageDisplayManager getStorageDisplayManager() {
         return storageDisplayManager;
+    }
+
+    public PlayerHeadCache getPlayerHeadCache() {
+        return playerHeadCache;
     }
 }
 

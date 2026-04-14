@@ -159,7 +159,7 @@ public class PermissionsMenu extends AbstractMenu {
         ItemStack item = new ItemStack(Material.PLAYER_HEAD);
         SkullMeta meta = (SkullMeta) item.getItemMeta();
         if (meta != null) {
-            meta.setOwningPlayer(op);
+            plugin.getPlayerHeadCache().applyCachedProfile(meta, op);
             meta.displayName(Component.text(op.getName() != null ? op.getName() : "Unbekannt").color(NamedTextColor.YELLOW));
             meta.lore(List.of(Component.text("Klicken zum Entfernen", NamedTextColor.RED)));
             item.setItemMeta(meta);
