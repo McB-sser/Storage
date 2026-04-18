@@ -19,6 +19,8 @@ import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.ShulkerBox;
@@ -49,6 +51,7 @@ public final class StorageDisplayManager {
     private static final int QUICK_SLOT_COLUMNS = 9;
     private static final int QUICK_SLOT_ROWS = 4;
     private static final int QUICK_SLOT_COUNT = QUICK_SLOT_COLUMNS * QUICK_SLOT_ROWS;
+    private static final double DEFAULT_ENTITY_INTERACTION_RANGE = 3.0;
 
     private final Storage plugin;
     private final NamespacedKey ownerKey;
@@ -255,10 +258,11 @@ public final class StorageDisplayManager {
             return null;
         }
 
+        double interactionRange = getEntityInteractionRange(player);
         RayTraceResult rayTrace = player.getWorld().rayTraceEntities(
                 player.getEyeLocation(),
                 player.getEyeLocation().getDirection(),
-                8.0,
+                interactionRange,
                 entity -> isDisplayEntity(entity) && getDisplaySlot(entity) >= 0
         );
         if (rayTrace == null || rayTrace.getHitEntity() == null) {
@@ -289,6 +293,24 @@ public final class StorageDisplayManager {
                 : new ArrayList<>();
 
         return new HoveredDisplayInfo(shulkerId, displaySlot, title, lore);
+    }
+
+    public double getEntityInteractionRange(Player player) {
+        return getPlayerAttributeValue(player, Attribute.ENTITY_INTERACTION_RANGE, DEFAULT_ENTITY_INTERACTION_RANGE);
+    }
+
+    private double getPlayerAttributeValue(Player player, Attribute attribute, double fallback) {
+        if (player == null || attribute == null) {
+            return fallback;
+        }
+
+        AttributeInstance attributeInstance = player.getAttribute(attribute);
+        if (attributeInstance == null) {
+            return fallback;
+        }
+
+        double value = attributeInstance.getValue();
+        return value > 0.0 ? value : fallback;
     }
 
     private void refreshAll() {

@@ -190,7 +190,8 @@ public final class StorageSidebar {
             }
         }
 
-        Block targetBlock = player.getTargetBlockExact(8);
+        int blockInteractionRange = (int) Math.ceil(plugin.getStorageDisplayManager().getEntityInteractionRange(player));
+        Block targetBlock = player.getTargetBlockExact(blockInteractionRange);
         if (targetBlock == null || !(targetBlock.getState() instanceof ShulkerBox shulker)) {
             return null;
         }
