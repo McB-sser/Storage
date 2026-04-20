@@ -153,6 +153,10 @@ public final class StorageDisplayManager {
             removeDisplay(shulkerId);
             return;
         }
+        if (!hasNearbyViewer(location)) {
+            removeDisplay(shulkerId);
+            return;
+        }
         PlayerLager lager = plugin.getLagerManager().getLager(storageOwner);
         float displayYaw = resolveDisplayYaw(shulker);
         DisplayCluster cluster = activeDisplays.get(shulkerId);
@@ -765,6 +769,23 @@ public final class StorageDisplayManager {
             return 37 + (level - 15) * 5;
         }
         return 7 + level * 2;
+    }
+
+    private boolean hasNearbyViewer(Location location) {
+        if (location == null || location.getWorld() == null) {
+            return false;
+        }
+        double maxDistance = plugin.getConfig().getDouble("storage.display.max-view-distance", 64.0D);
+        double maxDistanceSquared = maxDistance * maxDistance;
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            if (player == null || !player.isOnline() || player.isDead() || player.getWorld() != location.getWorld()) {
+                continue;
+            }
+            if (player.getLocation().distanceSquared(location) <= maxDistanceSquared) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void prepareDisplayEntity(Entity entity, UUID shulkerId, int slotIndex) {

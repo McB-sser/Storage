@@ -1,4 +1,6 @@
 storage:
+  display:
+    max-view-distance: 64.0
   mysql:
     # Wenn deaktiviert, nutzt Storage automatisch die lokale Nitrite-Datenbank.
     enabled: false
