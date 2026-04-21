@@ -40,8 +40,10 @@ import org.joml.Vector3f;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 public final class StorageDisplayManager {
@@ -56,6 +58,12 @@ public final class StorageDisplayManager {
     private static final double DEFAULT_MAX_VIEW_DISTANCE = 64.0D;
     private static final double DETAIL_TITLE_OFFSET_Y = 4.45D;
     private static final double PREVIEW_TITLE_OFFSET_Y = 1.35D;
+    private static final double SPAWN_ANIMATION_START_Y = 1.50D;
+    private static final double TITLE_SPAWN_ANIMATION_START_Y = 0.55D;
+    private static final int SPAWN_ANIMATION_TICKS = 6;
+    private static final int TITLE_ANIMATION_TICKS = 6;
+    private static final int SPAWN_ANIMATION_DELAY_TICKS = 2;
+    private static final int TITLE_SPAWN_ANIMATION_DELAY_TICKS = 5;
 
     private final Storage plugin;
     private final NamespacedKey ownerKey;
@@ -64,6 +72,7 @@ public final class StorageDisplayManager {
     private final NamespacedKey slotKey;
     private final Map<UUID, Location> trackedLocations = new HashMap<>();
     private final Map<UUID, DisplayCluster> activeDisplays = new HashMap<>();
+    private final Set<UUID> closingDisplays = new HashSet<>();
     private BukkitTask refreshTask;
     private int passiveRescanCounter;
 
@@ -157,18 +166,37 @@ public final class StorageDisplayManager {
             removeDisplay(shulkerId);
             return;
         }
+        float displayYaw = resolveDisplayYaw(shulker);
         ViewerState viewerState = getViewerState(location);
         if (viewerState == ViewerState.NONE) {
-            removeDisplay(shulkerId);
+            DisplayCluster existingCluster = activeDisplays.get(shulkerId);
+            if (existingCluster != null) {
+                closeDisplay(shulkerId, existingCluster, displayYaw);
+            } else {
+                removeDisplay(shulkerId);
+            }
             return;
         }
         PlayerLager lager = plugin.getLagerManager().getLager(storageOwner);
-        float displayYaw = resolveDisplayYaw(shulker);
         DisplayCluster cluster = activeDisplays.get(shulkerId);
         boolean detailedVisible = viewerState == ViewerState.DETAIL;
-        if (cluster == null || !cluster.isValid() || cluster.detailed() != detailedVisible) {
+        if (closingDisplays.contains(shulkerId)) {
+            DisplayCluster closingCluster = activeDisplays.remove(shulkerId);
+            if (closingCluster != null) {
+                closingCluster.remove();
+            }
+            closingDisplays.remove(shulkerId);
+            cluster = null;
+        }
+        if (cluster == null || !cluster.isValid()) {
             removeDisplay(shulkerId);
             cluster = spawnCluster(location, shulkerId, displayYaw, detailedVisible);
+            activeDisplays.put(shulkerId, cluster);
+        } else if (cluster.detailed() && !detailedVisible) {
+            collapseToPreview(cluster, displayYaw);
+        } else if (!cluster.detailed() && detailedVisible) {
+            removeDisplay(shulkerId);
+            cluster = spawnCluster(location, shulkerId, displayYaw, true);
             activeDisplays.put(shulkerId, cluster);
         }
         updateCluster(cluster, settings, lager, displayYaw, viewerState);
@@ -370,12 +398,14 @@ public final class StorageDisplayManager {
 
     private DisplayCluster spawnCluster(Location location, UUID shulkerId, float displayYaw, boolean detailed) {
         Location titleLocation = offsetLocation(location, 0.0, detailed ? DETAIL_TITLE_OFFSET_Y : PREVIEW_TITLE_OFFSET_Y, -0.03, displayYaw);
-        TextDisplay title = titleLocation.getWorld().spawn(titleLocation, TextDisplay.class, display -> {
+        Location titleStartLocation = titleSpawnAnimationStart(location, titleLocation);
+        TextDisplay title = titleLocation.getWorld().spawn(titleStartLocation, TextDisplay.class, display -> {
             prepareDisplayEntity(display, shulkerId, -1);
             display.setBillboard(Display.Billboard.FIXED);
             display.text(net.kyori.adventure.text.Component.text("Lageranzeige"));
             display.setRotation(displayYaw, 0f);
         });
+        animateSpawn(title, titleLocation, TITLE_ANIMATION_TICKS, TITLE_SPAWN_ANIMATION_DELAY_TICKS);
 
         List<ItemDisplay> backgroundDisplays = new ArrayList<>(DISPLAY_SLOT_COUNT);
         List<ItemDisplay> itemDisplays = new ArrayList<>(DISPLAY_SLOT_COUNT);
@@ -393,7 +423,8 @@ public final class StorageDisplayManager {
             double yOffset = 4.00 - (row * 0.50);
 
             Location backgroundLocation = offsetLocation(location, xOffset, yOffset, 0.0, displayYaw);
-            ItemDisplay backgroundDisplay = backgroundLocation.getWorld().spawn(backgroundLocation, ItemDisplay.class, display -> {
+            Location backgroundStartLocation = spawnAnimationStart(location, backgroundLocation);
+            ItemDisplay backgroundDisplay = backgroundLocation.getWorld().spawn(backgroundStartLocation, ItemDisplay.class, display -> {
                 prepareDisplayEntity(display, shulkerId, -1);
                 display.setBillboard(Display.Billboard.FIXED);
                 display.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
@@ -402,9 +433,11 @@ public final class StorageDisplayManager {
                                 new Vector3f(0.50f, 0.50f, 0.50f), new Quaternionf()));
                 display.setRotation(displayYaw, 0f);
             });
+            animateSpawn(backgroundDisplay, backgroundLocation, SPAWN_ANIMATION_TICKS);
 
             Location itemLocation = offsetLocation(location, xOffset, yOffset + 0.06, 0.02, displayYaw);
-            ItemDisplay itemDisplay = itemLocation.getWorld().spawn(itemLocation, ItemDisplay.class, display -> {
+            Location itemStartLocation = spawnAnimationStart(location, itemLocation);
+            ItemDisplay itemDisplay = itemLocation.getWorld().spawn(itemStartLocation, ItemDisplay.class, display -> {
                 prepareDisplayEntity(display, shulkerId, -1);
                 display.setBillboard(Display.Billboard.FIXED);
                 display.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
@@ -413,15 +446,18 @@ public final class StorageDisplayManager {
                                 new Vector3f(0.28f, 0.28f, 0.28f), new Quaternionf()));
                 display.setRotation(displayYaw, 0f);
             });
+            animateSpawn(itemDisplay, itemLocation, SPAWN_ANIMATION_TICKS);
 
             Location amountLocation = offsetLocation(location, xOffset, yOffset - 0.22, 0.02, displayYaw);
-            TextDisplay amountDisplay = amountLocation.getWorld().spawn(amountLocation, TextDisplay.class, display -> {
+            Location amountStartLocation = spawnAnimationStart(location, amountLocation);
+            TextDisplay amountDisplay = amountLocation.getWorld().spawn(amountStartLocation, TextDisplay.class, display -> {
                 prepareDisplayEntity(display, shulkerId, -1);
                 display.setBillboard(Display.Billboard.FIXED);
                 display.setTransformation(new org.bukkit.util.Transformation(new Vector3f(), new Quaternionf(),
                         new Vector3f(0.60f, 0.60f, 0.60f), new Quaternionf()));
                 display.setRotation(displayYaw, 0f);
             });
+            animateSpawn(amountDisplay, amountLocation, SPAWN_ANIMATION_TICKS);
 
             backgroundDisplays.add(backgroundDisplay);
             itemDisplays.add(itemDisplay);
@@ -442,19 +478,22 @@ public final class StorageDisplayManager {
         return new DisplayCluster(location.clone(), true, title, backgroundDisplays, itemDisplays, amountDisplays, interactions);
     }
 
+    private void collapseToPreview(DisplayCluster cluster, float displayYaw) {
+        cluster.setDetailed(false);
+        animateTitle(cluster, PREVIEW_TITLE_OFFSET_Y, displayYaw);
+        animateVisualsDown(cluster, displayYaw);
+        Bukkit.getScheduler().runTaskLater(plugin, cluster::removeVisuals, SPAWN_ANIMATION_TICKS + 1L);
+    }
+
     private void updateCluster(DisplayCluster cluster, ShulkerSettings settings, PlayerLager lager, float displayYaw, ViewerState viewerState) {
         String ownerName = settings.getOwnerName();
         if (ownerName == null || ownerName.isBlank()) {
             ownerName = "Unbekannt";
         }
         cluster.title().text(net.kyori.adventure.text.Component.text("Lager von: " + ownerName));
-        cluster.title().teleport(offsetLocation(
-                cluster.blockLocation(),
-                0.0,
-                viewerState == ViewerState.DETAIL ? DETAIL_TITLE_OFFSET_Y : PREVIEW_TITLE_OFFSET_Y,
-                -0.03,
-                displayYaw
-        ));
+        if (!cluster.consumeFreshSpawn()) {
+            animateTitle(cluster, viewerState == ViewerState.DETAIL ? DETAIL_TITLE_OFFSET_Y : PREVIEW_TITLE_OFFSET_Y, displayYaw);
+        }
         cluster.title().setRotation(displayYaw, 0f);
 
         if (viewerState != ViewerState.DETAIL) {
@@ -837,7 +876,71 @@ public final class StorageDisplayManager {
         double sin = Math.sin(radians);
         double worldX = (localX * cos) - (localZ * sin);
         double worldZ = (localX * sin) + (localZ * cos);
-        return centered(base).add(worldX, localY, worldZ);
+        Location transformed = centered(base).add(worldX, localY, worldZ);
+        transformed.setYaw(yaw);
+        transformed.setPitch(0.0f);
+        return transformed;
+    }
+
+    private Location spawnAnimationStart(Location base, Location target) {
+        Location start = target.clone();
+        start.setY(base.getY() + SPAWN_ANIMATION_START_Y);
+        return start;
+    }
+
+    private Location titleSpawnAnimationStart(Location base, Location target) {
+        Location start = target.clone();
+        start.setY(base.getY() + TITLE_SPAWN_ANIMATION_START_Y);
+        return start;
+    }
+
+    private void animateSpawn(Display display, Location target, int ticks) {
+        animateSpawn(display, target, ticks, SPAWN_ANIMATION_DELAY_TICKS);
+    }
+
+    private void animateSpawn(Display display, Location target, int ticks, long delayTicks) {
+        display.setTeleportDuration(ticks);
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (display.isValid()) {
+                display.setTeleportDuration(ticks);
+                display.teleport(target);
+            }
+        }, delayTicks);
+    }
+
+    private void animateTitle(DisplayCluster cluster, double targetY, float displayYaw) {
+        TextDisplay title = cluster.title();
+        if (title == null || !title.isValid()) {
+            return;
+        }
+        title.setTeleportDuration(TITLE_ANIMATION_TICKS);
+        title.teleport(offsetLocation(cluster.blockLocation(), 0.0, targetY, -0.03, displayYaw));
+    }
+
+    private void animateVisualsDown(DisplayCluster cluster, float displayYaw) {
+        int count = Math.min(DISPLAY_SLOT_COUNT, Math.min(
+                cluster.backgroundDisplays().size(),
+                Math.min(cluster.itemDisplays().size(), cluster.amountDisplays().size())
+        ));
+        for (int index = 0; index < count; index++) {
+            int row = index / DISPLAY_COLUMNS;
+            int column = index % DISPLAY_COLUMNS;
+            double xOffset = -2.0 + (column * 0.50);
+            teleportIfValid(cluster.backgroundDisplays().get(index),
+                    offsetLocation(cluster.blockLocation(), xOffset, SPAWN_ANIMATION_START_Y, 0.0, displayYaw));
+            teleportIfValid(cluster.itemDisplays().get(index),
+                    offsetLocation(cluster.blockLocation(), xOffset, SPAWN_ANIMATION_START_Y + 0.06, 0.02, displayYaw));
+            teleportIfValid(cluster.amountDisplays().get(index),
+                    offsetLocation(cluster.blockLocation(), xOffset, SPAWN_ANIMATION_START_Y - 0.22, 0.02, displayYaw));
+        }
+    }
+
+    private void teleportIfValid(Display display, Location target) {
+        if (display == null || !display.isValid()) {
+            return;
+        }
+        display.setTeleportDuration(SPAWN_ANIMATION_TICKS);
+        display.teleport(target);
     }
 
     private UUID resolveStorageOwner(ShulkerSettings settings, ShulkerBox shulker) {
@@ -886,11 +989,25 @@ public final class StorageDisplayManager {
     }
 
     private void removeDisplay(UUID shulkerId) {
+        closingDisplays.remove(shulkerId);
         DisplayCluster cluster = activeDisplays.remove(shulkerId);
         if (cluster == null) {
             return;
         }
         cluster.remove();
+    }
+
+    private void closeDisplay(UUID shulkerId, DisplayCluster cluster, float displayYaw) {
+        if (!closingDisplays.add(shulkerId)) {
+            return;
+        }
+        animateTitle(cluster, SPAWN_ANIMATION_START_Y, displayYaw);
+        animateVisualsDown(cluster, displayYaw);
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            activeDisplays.remove(shulkerId);
+            closingDisplays.remove(shulkerId);
+            cluster.remove();
+        }, SPAWN_ANIMATION_TICKS + 1L);
     }
 
     private void clearAll() {
@@ -907,12 +1024,71 @@ public final class StorageDisplayManager {
         DETAIL
     }
 
-    private record DisplayCluster(Location blockLocation, boolean detailed, TextDisplay title, List<ItemDisplay> backgroundDisplays,
-                                  List<ItemDisplay> itemDisplays,
-                                  List<TextDisplay> amountDisplays, List<Interaction> interactions) {
+    private static final class DisplayCluster {
+        private final Location blockLocation;
+        private boolean detailed;
+        private boolean freshSpawn = true;
+        private final TextDisplay title;
+        private final List<ItemDisplay> backgroundDisplays;
+        private final List<ItemDisplay> itemDisplays;
+        private final List<TextDisplay> amountDisplays;
+        private final List<Interaction> interactions;
+
+        private DisplayCluster(Location blockLocation, boolean detailed, TextDisplay title, List<ItemDisplay> backgroundDisplays,
+                               List<ItemDisplay> itemDisplays, List<TextDisplay> amountDisplays, List<Interaction> interactions) {
+            this.blockLocation = blockLocation;
+            this.detailed = detailed;
+            this.title = title;
+            this.backgroundDisplays = backgroundDisplays;
+            this.itemDisplays = itemDisplays;
+            this.amountDisplays = amountDisplays;
+            this.interactions = interactions;
+        }
+
+        private Location blockLocation() {
+            return blockLocation;
+        }
+
+        private boolean detailed() {
+            return detailed;
+        }
+
+        private void setDetailed(boolean detailed) {
+            this.detailed = detailed;
+        }
+
+        private boolean consumeFreshSpawn() {
+            boolean fresh = freshSpawn;
+            freshSpawn = false;
+            return fresh;
+        }
+
+        private TextDisplay title() {
+            return title;
+        }
+
+        private List<ItemDisplay> backgroundDisplays() {
+            return backgroundDisplays;
+        }
+
+        private List<ItemDisplay> itemDisplays() {
+            return itemDisplays;
+        }
+
+        private List<TextDisplay> amountDisplays() {
+            return amountDisplays;
+        }
+
+        private List<Interaction> interactions() {
+            return interactions;
+        }
+
         private boolean isValid() {
             if (title == null || !title.isValid()) {
                 return false;
+            }
+            if (!detailed && backgroundDisplays.isEmpty() && itemDisplays.isEmpty() && amountDisplays.isEmpty() && interactions.isEmpty()) {
+                return true;
             }
             for (ItemDisplay backgroundDisplay : backgroundDisplays) {
                 if (backgroundDisplay == null || !backgroundDisplay.isValid()) {
@@ -935,6 +1111,33 @@ public final class StorageDisplayManager {
                 }
             }
             return true;
+        }
+
+        private void removeVisuals() {
+            for (ItemDisplay backgroundDisplay : backgroundDisplays) {
+                if (backgroundDisplay != null && backgroundDisplay.isValid()) {
+                    backgroundDisplay.remove();
+                }
+            }
+            for (ItemDisplay itemDisplay : itemDisplays) {
+                if (itemDisplay != null && itemDisplay.isValid()) {
+                    itemDisplay.remove();
+                }
+            }
+            for (TextDisplay amountDisplay : amountDisplays) {
+                if (amountDisplay != null && amountDisplay.isValid()) {
+                    amountDisplay.remove();
+                }
+            }
+            for (Interaction interaction : interactions) {
+                if (interaction != null && interaction.isValid()) {
+                    interaction.remove();
+                }
+            }
+            backgroundDisplays.clear();
+            itemDisplays.clear();
+            amountDisplays.clear();
+            interactions.clear();
         }
 
         private void remove() {
