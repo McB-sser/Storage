@@ -52,6 +52,10 @@ public final class StorageDisplayManager {
     private static final int QUICK_SLOT_ROWS = 4;
     private static final int QUICK_SLOT_COUNT = QUICK_SLOT_COLUMNS * QUICK_SLOT_ROWS;
     private static final double DEFAULT_ENTITY_INTERACTION_RANGE = 3.0;
+    private static final double DEFAULT_DETAIL_VIEW_DISTANCE = 16.0D;
+    private static final double DEFAULT_MAX_VIEW_DISTANCE = 64.0D;
+    private static final double DETAIL_TITLE_OFFSET_Y = 4.45D;
+    private static final double PREVIEW_TITLE_OFFSET_Y = 1.35D;
 
     private final Storage plugin;
     private final NamespacedKey ownerKey;
@@ -153,19 +157,21 @@ public final class StorageDisplayManager {
             removeDisplay(shulkerId);
             return;
         }
-        if (!hasNearbyViewer(location)) {
+        ViewerState viewerState = getViewerState(location);
+        if (viewerState == ViewerState.NONE) {
             removeDisplay(shulkerId);
             return;
         }
         PlayerLager lager = plugin.getLagerManager().getLager(storageOwner);
         float displayYaw = resolveDisplayYaw(shulker);
         DisplayCluster cluster = activeDisplays.get(shulkerId);
-        if (cluster == null || !cluster.isValid()) {
+        boolean detailedVisible = viewerState == ViewerState.DETAIL;
+        if (cluster == null || !cluster.isValid() || cluster.detailed() != detailedVisible) {
             removeDisplay(shulkerId);
-            cluster = spawnCluster(location, shulkerId, displayYaw);
+            cluster = spawnCluster(location, shulkerId, displayYaw, detailedVisible);
             activeDisplays.put(shulkerId, cluster);
         }
-        updateCluster(cluster, settings, lager, displayYaw);
+        updateCluster(cluster, settings, lager, displayYaw, viewerState);
     }
 
     public boolean handleDisplayUse(Player player, UUID shulkerId, int displaySlot, boolean rightClick) {
@@ -362,8 +368,8 @@ public final class StorageDisplayManager {
         }
     }
 
-    private DisplayCluster spawnCluster(Location location, UUID shulkerId, float displayYaw) {
-        Location titleLocation = offsetLocation(location, 0.0, 4.45, -0.03, displayYaw);
+    private DisplayCluster spawnCluster(Location location, UUID shulkerId, float displayYaw, boolean detailed) {
+        Location titleLocation = offsetLocation(location, 0.0, detailed ? DETAIL_TITLE_OFFSET_Y : PREVIEW_TITLE_OFFSET_Y, -0.03, displayYaw);
         TextDisplay title = titleLocation.getWorld().spawn(titleLocation, TextDisplay.class, display -> {
             prepareDisplayEntity(display, shulkerId, -1);
             display.setBillboard(Display.Billboard.FIXED);
@@ -375,6 +381,10 @@ public final class StorageDisplayManager {
         List<ItemDisplay> itemDisplays = new ArrayList<>(DISPLAY_SLOT_COUNT);
         List<TextDisplay> amountDisplays = new ArrayList<>(DISPLAY_SLOT_COUNT);
         List<Interaction> interactions = new ArrayList<>(DISPLAY_SLOT_COUNT);
+
+        if (!detailed) {
+            return new DisplayCluster(location.clone(), false, title, backgroundDisplays, itemDisplays, amountDisplays, interactions);
+        }
 
         for (int index = 0; index < DISPLAY_SLOT_COUNT; index++) {
             int row = index / DISPLAY_COLUMNS;
@@ -429,16 +439,27 @@ public final class StorageDisplayManager {
             interactions.add(interaction);
         }
 
-        return new DisplayCluster(location.clone(), title, backgroundDisplays, itemDisplays, amountDisplays, interactions);
+        return new DisplayCluster(location.clone(), true, title, backgroundDisplays, itemDisplays, amountDisplays, interactions);
     }
 
-    private void updateCluster(DisplayCluster cluster, ShulkerSettings settings, PlayerLager lager, float displayYaw) {
+    private void updateCluster(DisplayCluster cluster, ShulkerSettings settings, PlayerLager lager, float displayYaw, ViewerState viewerState) {
         String ownerName = settings.getOwnerName();
         if (ownerName == null || ownerName.isBlank()) {
             ownerName = "Unbekannt";
         }
         cluster.title().text(net.kyori.adventure.text.Component.text("Lager von: " + ownerName));
+        cluster.title().teleport(offsetLocation(
+                cluster.blockLocation(),
+                0.0,
+                viewerState == ViewerState.DETAIL ? DETAIL_TITLE_OFFSET_Y : PREVIEW_TITLE_OFFSET_Y,
+                -0.03,
+                displayYaw
+        ));
         cluster.title().setRotation(displayYaw, 0f);
+
+        if (viewerState != ViewerState.DETAIL) {
+            return;
+        }
 
         for (int index = 0; index < DISPLAY_SLOT_COUNT; index++) {
             cluster.backgroundDisplays().get(index).setItemStack(new ItemStack(Material.BLACK_STAINED_GLASS_PANE));
@@ -771,21 +792,28 @@ public final class StorageDisplayManager {
         return 7 + level * 2;
     }
 
-    private boolean hasNearbyViewer(Location location) {
+    private ViewerState getViewerState(Location location) {
         if (location == null || location.getWorld() == null) {
-            return false;
+            return ViewerState.NONE;
         }
-        double maxDistance = plugin.getConfig().getDouble("storage.display.max-view-distance", 64.0D);
+        double detailDistance = plugin.getConfig().getDouble("storage.display.detail-view-distance", DEFAULT_DETAIL_VIEW_DISTANCE);
+        double maxDistance = plugin.getConfig().getDouble("storage.display.max-view-distance", DEFAULT_MAX_VIEW_DISTANCE);
+        double detailDistanceSquared = detailDistance * detailDistance;
         double maxDistanceSquared = maxDistance * maxDistance;
+        boolean hasPreviewViewer = false;
         for (Player player : Bukkit.getOnlinePlayers()) {
             if (player == null || !player.isOnline() || player.isDead() || player.getWorld() != location.getWorld()) {
                 continue;
             }
-            if (player.getLocation().distanceSquared(location) <= maxDistanceSquared) {
-                return true;
+            double distanceSquared = player.getLocation().distanceSquared(location);
+            if (distanceSquared <= detailDistanceSquared) {
+                return ViewerState.DETAIL;
+            }
+            if (distanceSquared <= maxDistanceSquared) {
+                hasPreviewViewer = true;
             }
         }
-        return false;
+        return hasPreviewViewer ? ViewerState.PREVIEW : ViewerState.NONE;
     }
 
     private void prepareDisplayEntity(Entity entity, UUID shulkerId, int slotIndex) {
@@ -873,7 +901,13 @@ public final class StorageDisplayManager {
         trackedLocations.clear();
     }
 
-    private record DisplayCluster(Location blockLocation, TextDisplay title, List<ItemDisplay> backgroundDisplays,
+    private enum ViewerState {
+        NONE,
+        PREVIEW,
+        DETAIL
+    }
+
+    private record DisplayCluster(Location blockLocation, boolean detailed, TextDisplay title, List<ItemDisplay> backgroundDisplays,
                                   List<ItemDisplay> itemDisplays,
                                   List<TextDisplay> amountDisplays, List<Interaction> interactions) {
         private boolean isValid() {
