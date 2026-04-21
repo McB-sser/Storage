@@ -59,11 +59,11 @@ public final class StorageDisplayManager {
     private static final double DETAIL_TITLE_OFFSET_Y = 4.45D;
     private static final double PREVIEW_TITLE_OFFSET_Y = 1.35D;
     private static final double SPAWN_ANIMATION_START_Y = 1.50D;
-    private static final double TITLE_SPAWN_ANIMATION_START_Y = 0.55D;
     private static final int SPAWN_ANIMATION_TICKS = 6;
     private static final int TITLE_ANIMATION_TICKS = 6;
+    private static final int TITLE_SPAWN_HOLD_TICKS = 2;
+    private static final int TITLE_SPAWN_STEP_TICKS = 5;
     private static final int SPAWN_ANIMATION_DELAY_TICKS = 2;
-    private static final int TITLE_SPAWN_ANIMATION_DELAY_TICKS = 5;
 
     private final Storage plugin;
     private final NamespacedKey ownerKey;
@@ -402,11 +402,10 @@ public final class StorageDisplayManager {
         TextDisplay title = titleLocation.getWorld().spawn(titleStartLocation, TextDisplay.class, display -> {
             prepareDisplayEntity(display, shulkerId, -1);
             display.setBillboard(Display.Billboard.FIXED);
-            display.text(net.kyori.adventure.text.Component.text("Lageranzeige"));
+            display.setTeleportDuration(0);
+            display.text(Component.empty());
             display.setRotation(displayYaw, 0f);
         });
-        animateSpawn(title, titleLocation, TITLE_ANIMATION_TICKS, TITLE_SPAWN_ANIMATION_DELAY_TICKS);
-
         List<ItemDisplay> backgroundDisplays = new ArrayList<>(DISPLAY_SLOT_COUNT);
         List<ItemDisplay> itemDisplays = new ArrayList<>(DISPLAY_SLOT_COUNT);
         List<TextDisplay> amountDisplays = new ArrayList<>(DISPLAY_SLOT_COUNT);
@@ -490,9 +489,15 @@ public final class StorageDisplayManager {
         if (ownerName == null || ownerName.isBlank()) {
             ownerName = "Unbekannt";
         }
-        cluster.title().text(net.kyori.adventure.text.Component.text("Lager von: " + ownerName));
-        if (!cluster.consumeFreshSpawn()) {
-            animateTitle(cluster, viewerState == ViewerState.DETAIL ? DETAIL_TITLE_OFFSET_Y : PREVIEW_TITLE_OFFSET_Y, displayYaw);
+        Component titleText = net.kyori.adventure.text.Component.text("Lager von: " + ownerName);
+        double titleTargetY = viewerState == ViewerState.DETAIL ? DETAIL_TITLE_OFFSET_Y : PREVIEW_TITLE_OFFSET_Y;
+        if (cluster.consumeFreshSpawn()) {
+            animateTitleFromHidden(cluster, titleText, titleTargetY, displayYaw);
+        } else if (cluster.titleIntroRunning()) {
+            cluster.title().setRotation(displayYaw, 0f);
+        } else {
+            cluster.title().text(titleText);
+            animateTitle(cluster, titleTargetY, displayYaw);
         }
         cluster.title().setRotation(displayYaw, 0f);
 
@@ -890,7 +895,7 @@ public final class StorageDisplayManager {
 
     private Location titleSpawnAnimationStart(Location base, Location target) {
         Location start = target.clone();
-        start.setY(base.getY() + TITLE_SPAWN_ANIMATION_START_Y);
+        start.setY(base.getY() + SPAWN_ANIMATION_START_Y);
         return start;
     }
 
@@ -915,6 +920,46 @@ public final class StorageDisplayManager {
         }
         title.setTeleportDuration(TITLE_ANIMATION_TICKS);
         title.teleport(offsetLocation(cluster.blockLocation(), 0.0, targetY, -0.03, displayYaw));
+    }
+
+    private void animateTitleFromHidden(DisplayCluster cluster, Component titleText, double targetY, float displayYaw) {
+        TextDisplay title = cluster.title();
+        if (title == null || !title.isValid()) {
+            return;
+        }
+        Location hiddenLocation = offsetLocation(cluster.blockLocation(), 0.0, SPAWN_ANIMATION_START_Y, -0.03, displayYaw);
+        cluster.setTitleIntroRunning(true);
+        title.setTeleportDuration(0);
+        title.teleport(hiddenLocation);
+        title.text(Component.empty());
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            TextDisplay currentTitle = cluster.title();
+            if (currentTitle == null || !currentTitle.isValid()) {
+                cluster.setTitleIntroRunning(false);
+                return;
+            }
+            currentTitle.setTeleportDuration(0);
+            currentTitle.teleport(hiddenLocation);
+            currentTitle.text(Component.empty());
+            currentTitle.text(titleText);
+            slideTitleUp(cluster, SPAWN_ANIMATION_START_Y, targetY, displayYaw, 1);
+        }, TITLE_SPAWN_HOLD_TICKS);
+    }
+
+    private void slideTitleUp(DisplayCluster cluster, double startY, double targetY, float displayYaw, int step) {
+        TextDisplay title = cluster.title();
+        if (title == null || !title.isValid()) {
+            return;
+        }
+        double progress = Math.min(1.0D, step / (double) TITLE_SPAWN_STEP_TICKS);
+        double currentY = startY + ((targetY - startY) * progress);
+        title.setTeleportDuration(1);
+        title.teleport(offsetLocation(cluster.blockLocation(), 0.0, currentY, -0.03, displayYaw));
+        if (step < TITLE_SPAWN_STEP_TICKS) {
+            Bukkit.getScheduler().runTaskLater(plugin, () -> slideTitleUp(cluster, startY, targetY, displayYaw, step + 1), 1L);
+        } else {
+            cluster.setTitleIntroRunning(false);
+        }
     }
 
     private void animateVisualsDown(DisplayCluster cluster, float displayYaw) {
@@ -1028,6 +1073,7 @@ public final class StorageDisplayManager {
         private final Location blockLocation;
         private boolean detailed;
         private boolean freshSpawn = true;
+        private boolean titleIntroRunning;
         private final TextDisplay title;
         private final List<ItemDisplay> backgroundDisplays;
         private final List<ItemDisplay> itemDisplays;
@@ -1061,6 +1107,14 @@ public final class StorageDisplayManager {
             boolean fresh = freshSpawn;
             freshSpawn = false;
             return fresh;
+        }
+
+        private boolean titleIntroRunning() {
+            return titleIntroRunning;
+        }
+
+        private void setTitleIntroRunning(boolean titleIntroRunning) {
+            this.titleIntroRunning = titleIntroRunning;
         }
 
         private TextDisplay title() {
