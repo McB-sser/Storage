@@ -35,6 +35,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.RayTraceResult;
+import org.bukkit.util.Transformation;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -62,7 +63,6 @@ public final class StorageDisplayManager {
     private static final int SPAWN_ANIMATION_TICKS = 6;
     private static final int TITLE_ANIMATION_TICKS = 6;
     private static final int TITLE_SPAWN_HOLD_TICKS = 2;
-    private static final int TITLE_SPAWN_STEP_TICKS = 5;
     private static final int SPAWN_ANIMATION_DELAY_TICKS = 2;
 
     private final Storage plugin;
@@ -398,8 +398,7 @@ public final class StorageDisplayManager {
 
     private DisplayCluster spawnCluster(Location location, UUID shulkerId, float displayYaw, boolean detailed) {
         Location titleLocation = offsetLocation(location, 0.0, detailed ? DETAIL_TITLE_OFFSET_Y : PREVIEW_TITLE_OFFSET_Y, -0.03, displayYaw);
-        Location titleStartLocation = titleSpawnAnimationStart(location, titleLocation);
-        TextDisplay title = titleLocation.getWorld().spawn(titleStartLocation, TextDisplay.class, display -> {
+        TextDisplay title = titleLocation.getWorld().spawn(titleLocation, TextDisplay.class, display -> {
             prepareDisplayEntity(display, shulkerId, -1);
             display.setBillboard(Display.Billboard.FIXED);
             display.setTeleportDuration(0);
@@ -919,6 +918,7 @@ public final class StorageDisplayManager {
             return;
         }
         title.setTeleportDuration(TITLE_ANIMATION_TICKS);
+        title.setTransformation(titleTransformation(0.0D));
         title.teleport(offsetLocation(cluster.blockLocation(), 0.0, targetY, -0.03, displayYaw));
     }
 
@@ -927,10 +927,14 @@ public final class StorageDisplayManager {
         if (title == null || !title.isValid()) {
             return;
         }
-        Location hiddenLocation = offsetLocation(cluster.blockLocation(), 0.0, SPAWN_ANIMATION_START_Y, -0.03, displayYaw);
+        Location targetLocation = offsetLocation(cluster.blockLocation(), 0.0, targetY, -0.03, displayYaw);
+        double hiddenOffsetY = SPAWN_ANIMATION_START_Y - targetY;
         cluster.setTitleIntroRunning(true);
         title.setTeleportDuration(0);
-        title.teleport(hiddenLocation);
+        title.teleport(targetLocation);
+        title.setInterpolationDelay(0);
+        title.setInterpolationDuration(0);
+        title.setTransformation(titleTransformation(hiddenOffsetY));
         title.text(Component.empty());
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             TextDisplay currentTitle = cluster.title();
@@ -939,27 +943,24 @@ public final class StorageDisplayManager {
                 return;
             }
             currentTitle.setTeleportDuration(0);
-            currentTitle.teleport(hiddenLocation);
-            currentTitle.text(Component.empty());
+            currentTitle.teleport(targetLocation);
+            currentTitle.setInterpolationDelay(0);
+            currentTitle.setInterpolationDuration(0);
+            currentTitle.setTransformation(titleTransformation(hiddenOffsetY));
             currentTitle.text(titleText);
-            slideTitleUp(cluster, SPAWN_ANIMATION_START_Y, targetY, displayYaw, 1);
+            currentTitle.setInterpolationDuration(TITLE_ANIMATION_TICKS);
+            currentTitle.setTransformation(titleTransformation(0.0D));
+            Bukkit.getScheduler().runTaskLater(plugin, () -> cluster.setTitleIntroRunning(false), TITLE_ANIMATION_TICKS + 1L);
         }, TITLE_SPAWN_HOLD_TICKS);
     }
 
-    private void slideTitleUp(DisplayCluster cluster, double startY, double targetY, float displayYaw, int step) {
-        TextDisplay title = cluster.title();
-        if (title == null || !title.isValid()) {
-            return;
-        }
-        double progress = Math.min(1.0D, step / (double) TITLE_SPAWN_STEP_TICKS);
-        double currentY = startY + ((targetY - startY) * progress);
-        title.setTeleportDuration(1);
-        title.teleport(offsetLocation(cluster.blockLocation(), 0.0, currentY, -0.03, displayYaw));
-        if (step < TITLE_SPAWN_STEP_TICKS) {
-            Bukkit.getScheduler().runTaskLater(plugin, () -> slideTitleUp(cluster, startY, targetY, displayYaw, step + 1), 1L);
-        } else {
-            cluster.setTitleIntroRunning(false);
-        }
+    private Transformation titleTransformation(double offsetY) {
+        return new Transformation(
+                new Vector3f(0.0f, (float) offsetY, 0.0f),
+                new Quaternionf(),
+                new Vector3f(1.0f, 1.0f, 1.0f),
+                new Quaternionf()
+        );
     }
 
     private void animateVisualsDown(DisplayCluster cluster, float displayYaw) {
