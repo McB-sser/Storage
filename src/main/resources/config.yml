@@ -1,5 +1,12 @@
 storage:
   display:
+    # Wie oft Display-Entfernungen und aktive Anzeigeinhalte aktualisiert werden.
+    refresh-ticks: 20
+    # Maximal so viele getrackte Shulker werden pro Refresh aktualisiert, damit keine kurzen Spikes entstehen.
+    refresh-budget-per-run: 6
+    # In Refresh-Zyklen. ChunkLoad/Place/Break tracken die meisten Aenderungen bereits.
+    nearby-chunk-scan-interval: 6
+    full-chunk-scan-interval: 300
     detail-view-distance: 16.0
     max-view-distance: 64.0
   mysql:

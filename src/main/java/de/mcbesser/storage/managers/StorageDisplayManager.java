@@ -57,6 +57,9 @@ public final class StorageDisplayManager {
     private static final double DEFAULT_ENTITY_INTERACTION_RANGE = 3.0;
     private static final double DEFAULT_DETAIL_VIEW_DISTANCE = 16.0D;
     private static final double DEFAULT_MAX_VIEW_DISTANCE = 64.0D;
+    private static final long DEFAULT_REFRESH_TICKS = 20L;
+    private static final int DEFAULT_NEARBY_CHUNK_SCAN_INTERVAL = 6;
+    private static final int DEFAULT_FULL_CHUNK_SCAN_INTERVAL = 300;
     private static final double DETAIL_TITLE_OFFSET_Y = 4.45D;
     private static final double PREVIEW_TITLE_OFFSET_Y = 1.35D;
     private static final double SPAWN_ANIMATION_START_Y = 1.50D;
@@ -74,7 +77,9 @@ public final class StorageDisplayManager {
     private final Map<UUID, DisplayCluster> activeDisplays = new HashMap<>();
     private final Set<UUID> closingDisplays = new HashSet<>();
     private BukkitTask refreshTask;
-    private int passiveRescanCounter;
+    private int nearbyChunkScanCounter;
+    private int fullChunkScanCounter;
+    private int refreshCursor;
 
     public StorageDisplayManager(Storage plugin) {
         this.plugin = plugin;
@@ -88,12 +93,15 @@ public final class StorageDisplayManager {
         if (refreshTask != null) {
             refreshTask.cancel();
         }
-        passiveRescanCounter = 0;
-        refreshTask = Bukkit.getScheduler().runTaskTimer(plugin, this::refreshAll, 1L, 10L);
-        Bukkit.getScheduler().runTask(plugin, this::scanLoadedChunks);
-        Bukkit.getScheduler().runTaskLater(plugin, this::scanLoadedChunks, 20L);
-        Bukkit.getScheduler().runTaskLater(plugin, this::scanLoadedChunks, 60L);
-        Bukkit.getScheduler().runTaskLater(plugin, this::scanLoadedChunks, 120L);
+        nearbyChunkScanCounter = 0;
+        fullChunkScanCounter = 0;
+        refreshCursor = 0;
+        long refreshTicks = Math.max(5L, plugin.getConfig().getLong("storage.display.refresh-ticks", DEFAULT_REFRESH_TICKS));
+        refreshTask = Bukkit.getScheduler().runTaskTimer(plugin, this::refreshAll, 5L, refreshTicks);
+        Bukkit.getScheduler().runTaskLater(plugin, this::scanLoadedChunks, 11L);
+        Bukkit.getScheduler().runTaskLater(plugin, this::scanLoadedChunks, 37L);
+        Bukkit.getScheduler().runTaskLater(plugin, this::scanLoadedChunks, 83L);
+        Bukkit.getScheduler().runTaskLater(plugin, this::scanLoadedChunks, 151L);
     }
 
     public void stop() {
@@ -352,21 +360,38 @@ public final class StorageDisplayManager {
     }
 
     private void refreshAll() {
-        passiveRescanCounter++;
-        if (passiveRescanCounter >= 12) {
-            passiveRescanCounter = 0;
+        nearbyChunkScanCounter++;
+        fullChunkScanCounter++;
+
+        int nearbyScanInterval = Math.max(1, plugin.getConfig().getInt(
+                "storage.display.nearby-chunk-scan-interval", DEFAULT_NEARBY_CHUNK_SCAN_INTERVAL));
+        if (nearbyChunkScanCounter >= nearbyScanInterval) {
+            nearbyChunkScanCounter = 0;
+            scanNearbyPlayerChunks();
+        }
+
+        int fullScanInterval = Math.max(1, plugin.getConfig().getInt(
+                "storage.display.full-chunk-scan-interval", DEFAULT_FULL_CHUNK_SCAN_INTERVAL));
+        if (fullChunkScanCounter >= fullScanInterval) {
+            fullChunkScanCounter = 0;
             scanLoadedChunks();
         }
 
-        scanNearbyPlayerChunks();
-
         if (trackedLocations.isEmpty()) {
+            refreshCursor = 0;
             return;
         }
 
         List<UUID> trackedIds = new ArrayList<>(trackedLocations.keySet());
-        for (UUID shulkerId : trackedIds) {
-            refreshShulker(shulkerId);
+        int budget = Math.max(1, plugin.getConfig().getInt("storage.display.refresh-budget-per-run", 6));
+        int processed = 0;
+        while (processed < budget && processed < trackedIds.size()) {
+            if (refreshCursor >= trackedIds.size()) {
+                refreshCursor = 0;
+            }
+            refreshShulker(trackedIds.get(refreshCursor));
+            refreshCursor++;
+            processed++;
         }
     }
 
@@ -1062,6 +1087,7 @@ public final class StorageDisplayManager {
         }
         activeDisplays.clear();
         trackedLocations.clear();
+        refreshCursor = 0;
     }
 
     private enum ViewerState {

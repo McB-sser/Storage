@@ -35,6 +35,7 @@ public final class StorageSidebar {
     private static final String OBJECTIVE_NAME = "storage_lager";
     private static final int QUICK_ROW_SIZE = 9;
     private static final int TOTAL_LINES = QUICK_ROW_SIZE + 6;
+    private static final int PLAYER_REFRESH_BUDGET = 6;
     private static final TextColor TITLE_ORANGE = TextColor.color(0xFFAA00);
     private static final NamedTextColor INFO_GREEN = NamedTextColor.GREEN;
 
@@ -42,6 +43,7 @@ public final class StorageSidebar {
     private final Map<UUID, BoardState> activeBoards = new HashMap<>();
     private final Set<UUID> pendingRefreshes = new HashSet<>();
     private BukkitTask refreshTask;
+    private int refreshCursor;
 
     public StorageSidebar(Storage plugin) {
         this.plugin = plugin;
@@ -51,7 +53,8 @@ public final class StorageSidebar {
         if (refreshTask != null) {
             refreshTask.cancel();
         }
-        refreshTask = Bukkit.getScheduler().runTaskTimer(plugin, this::refreshAll, 1L, 10L);
+        refreshCursor = 0;
+        refreshTask = Bukkit.getScheduler().runTaskTimer(plugin, this::refreshAll, 8L, 10L);
     }
 
     public void stop() {
@@ -163,9 +166,19 @@ public final class StorageSidebar {
     }
 
     private void refreshAll() {
-        for (Player player : Bukkit.getOnlinePlayers()) {
-            refresh(player);
+        List<Player> players = new ArrayList<>(Bukkit.getOnlinePlayers());
+        if (players.isEmpty()) {
+            refreshCursor = 0;
+            return;
         }
+        if (refreshCursor >= players.size()) {
+            refreshCursor = 0;
+        }
+        int count = Math.min(players.size(), PLAYER_REFRESH_BUDGET);
+        for (int i = 0; i < count; i++) {
+            refresh(players.get((refreshCursor + i) % players.size()));
+        }
+        refreshCursor = (refreshCursor + count) % players.size();
     }
 
     private HeldStorage resolveActiveStorage(Player player) {

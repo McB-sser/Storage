@@ -57,8 +57,8 @@ public class BlockListener implements Listener {
         this.plugin = plugin;
         this.ownerKey = new NamespacedKey(plugin, "owner");
         this.displayYawKey = new NamespacedKey(plugin, "display_yaw");
-        this.automationTask = Bukkit.getScheduler().runTaskTimer(plugin, this::tickTrackedShulkers, 10L, 10L);
-        Bukkit.getScheduler().runTask(plugin, (Runnable) this::scanLoadedChunks);
+        this.automationTask = Bukkit.getScheduler().runTaskTimer(plugin, this::tickTrackedShulkers, 12L, 10L);
+        Bukkit.getScheduler().runTaskLater(plugin, (Runnable) this::scanLoadedChunks, 17L);
     }
 
     @EventHandler

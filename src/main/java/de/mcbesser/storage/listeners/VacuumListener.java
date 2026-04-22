@@ -41,7 +41,7 @@ public class VacuumListener implements org.bukkit.event.Listener {
     }
 
     private void startTask() {
-        task = plugin.getServer().getScheduler().runTaskTimer(plugin, this::tickVacuum, 20L, 10L);
+        task = plugin.getServer().getScheduler().runTaskTimer(plugin, this::tickVacuum, 14L, 10L);
     }
 
     private void tickVacuum() {
