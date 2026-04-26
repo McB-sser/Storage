@@ -92,7 +92,7 @@ public class QuickSlotsView extends AbstractMenu {
                             "Linksklick: 1 Item nehmen",
                             "Rechtsklick: 1 Stack nehmen",
                             "Q/Drop: Inventar mit diesem Block f\u00fcllen",
-                            "Shift-Rechtsklick: Slot l\u00f6schen"));
+                            "Ducken + Rechtsklick: Slot l\u00f6schen"));
                     continue;
                 }
             }
@@ -160,7 +160,7 @@ public class QuickSlotsView extends AbstractMenu {
                 "Gespeichert: " + lager.getStoredExp() + " XP",
                 "Linksklick: gesamte Spieler-XP einlagern",
                 "Rechtsklick: 100 XP als Orbs ausgeben",
-                "Shift-Rechtsklick: alles ausgeben"));
+                "Ducken + Rechtsklick: alles ausgeben"));
         inventory.setItem(53, createItemWithLore(Material.SPYGLASS, "Lager durchsuchen",
                 "Klick: Vollansicht mit Kategorien, Suche und Sortierung",
                 "Ducken + Rechtsklick: Schnellzugriffbelegung leeren"));

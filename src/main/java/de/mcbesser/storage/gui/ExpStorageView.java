@@ -38,7 +38,7 @@ public class ExpStorageView extends AbstractMenu {
                         "Gespeichert (global): " + lager.getStoredExp() + " XP",
                         "Linksklick: gesamte Spieler-XP einlagern",
                         "Rechtsklick: 100 XP als Orbs ausgeben",
-                        "Shift-Rechtsklick: alles ausgeben")));
+                        "Ducken + Rechtsklick: alles ausgeben")));
         inventory.setItem(26, createSimpleItem(Material.ARROW, "Zur\u00fcck"));
     }
 

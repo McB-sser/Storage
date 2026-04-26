@@ -38,7 +38,7 @@ public class VacuumFilterSettingsView extends AbstractMenu {
             Material material = materialName != null ? Material.matchMaterial(materialName) : null;
             if (material != null) {
                 inventory.setItem(slot, createItemWithLore(material, "Filter " + (slot + 1) + ": " + material.name(),
-                        "Shift-Rechtsklick: entfernen"));
+                        "Ducken + Rechtsklick: entfernen"));
             } else {
                 inventory.setItem(slot, createItemWithLore(Material.LIME_STAINED_GLASS_PANE,
                         "Filter " + (slot + 1) + " leer",

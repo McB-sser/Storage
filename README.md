@@ -99,7 +99,7 @@ Das Hauptmenue (`QuickSlotsView`) ist der direkte Zugriff auf dein Lager.
 - Linksklick auf einen belegten Schnellslot: 1 Item entnehmen
 - Rechtsklick: 1 Stack entnehmen
 - `Q` bzw. Drop-Klick: Inventar mit diesem Material auffuellen, soweit Platz vorhanden ist
-- Shift-Rechtsklick auf einen Schnellslot: Belegung loeschen
+- Ducken + Rechtsklick auf einen Schnellslot: Belegung loeschen
 - Mittelklick oder Klick mit Cursor-Item auf einen leeren Slot: Material zuweisen
 
 Das ist besonders praktisch fuer Baumaterial, Werkstoffe oder Farmdrops, die man staendig braucht.
@@ -123,7 +123,7 @@ In der Lageransicht:
 
 - Zahlentasten `1` bis `9`: Material direkt einer Kategorie zuweisen
 - Taste fuer Offhand-Swap (`F`): Material aus Kategorien entfernen
-- Shift-Links / Shift-Rechts: Kategorie zyklisch vor oder zurueckschalten
+- Ducken + Links / Ducken + Rechts: Kategorie zyklisch vor oder zurueckschalten
 
 ### 4. Vollstaendige Lageransicht
 
@@ -165,7 +165,7 @@ Items lassen sich auf mehreren Wegen ins Lager verschieben:
 
 Zusatzfunktion:
 
-- Shift-Rechtsklick auf ein Item im Spielerinventar lagert es direkt in einen verfuegbaren Lager-Shulker ein
+- Ducken + Rechtsklick auf ein Item im Spielerinventar lagert es direkt in einen verfuegbaren Lager-Shulker ein
 - Bevorzugt wird ein eigener Lager-Shulker, sonst ein freigegebener
 
 Hinweis:
@@ -240,14 +240,14 @@ Filter-Bedienung:
 
 - Die ersten 9 Slots im Einsaug-Menue sind Filter-Slots
 - Mit Cursor-Item belegen
-- Shift-Rechtsklick entfernt einen Filter
+- Ducken + Rechtsklick entfernt einen Filter
 
 Bereichs-Bedienung:
 
 - Linksklick: Wert erhoehen
 - Rechtsklick: Wert verringern
-- Shift-Links: groessere Schritte nach oben
-- Shift-Rechts: groessere Schritte nach unten
+- Ducken + Links: groessere Schritte nach oben
+- Ducken + Rechts: groessere Schritte nach unten
 
 Grenzen:
 
@@ -263,7 +263,7 @@ Im Hauptmenue:
 
 - Linksklick auf EXP-Speicher: gesamte aktuelle Spieler-XP einlagern
 - Rechtsklick: `100 XP` als Orbs ausgeben
-- Shift-Rechtsklick: den kompletten XP-Vorrat ausgeben
+- Ducken + Rechtsklick: den kompletten XP-Vorrat ausgeben
 
 Damit lassen sich XP sichern oder spaeter gezielt wieder abrufen.
 

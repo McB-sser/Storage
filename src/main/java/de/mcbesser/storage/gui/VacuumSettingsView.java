@@ -67,7 +67,7 @@ public class VacuumSettingsView extends AbstractMenu {
         int chargePerFuel = getChargeForFuel(fuelMat);
         inventory.setItem(3, createItemWithLore(Material.EXPERIENCE_BOTTLE, "Ladung (global): " + lager.getVacuumCharge(),
                 "Linksklick: 1 Brennstoff verbrauchen",
-                "Shift-Links: alle passenden verbrauchen",
+                "Ducken + Links: alle passenden verbrauchen",
                 chargePerFuel > 0
                         ? "+" + chargePerFuel + " Ladung pro Brennstoff"
                         : "Minecraft-Brennda\u00fcr /20 wird verwendet"));
@@ -440,8 +440,8 @@ public class VacuumSettingsView extends AbstractMenu {
         return createItemWithLore(material, name + ": " + own,
                 "Linksklick: +" + SMALL_STEP,
                 "Rechtsklick: -" + SMALL_STEP,
-                "Shift-Links: +" + BIG_STEP,
-                "Shift-Rechts: -" + BIG_STEP,
+                "Ducken + Links: +" + BIG_STEP,
+                "Ducken + Rechts: -" + BIG_STEP,
                 "Gegenrichtung: " + other,
                 "Rest bis Limit: " + remaining);
     }
