@@ -639,7 +639,10 @@ public final class StorageSidebar {
     }
 
     private String uniqueEntry(int index) {
-        return org.bukkit.ChatColor.values()[index].toString();
+        if (index < 0 || index >= 16) {
+            throw new IllegalArgumentException("Scoreboard line index out of range: " + index);
+        }
+        return "\u00a7" + Integer.toHexString(index);
     }
 
     private record HeldStorage(UUID shulkerId, UUID ownerUuid, ShulkerSettings settings, PlayerLager lager) {

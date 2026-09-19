@@ -11,8 +11,7 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <maven.compiler.source>25</maven.compiler.source>
-    <maven.compiler.target>25</maven.compiler.target>
+    <maven.compiler.release>25</maven.compiler.release>
   </properties>
 
   <repositories>
@@ -38,7 +37,7 @@
     <dependency>
       <groupId>io.papermc.paper</groupId>
       <artifactId>paper-api</artifactId>
-      <version>[26.1.1.build,)</version>
+      <version>26.3.build.18-alpha</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -46,6 +45,12 @@
       <artifactId>gson</artifactId>
       <version>2.10.1</version>
       <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <version>2.0.17</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>com.mysql</groupId>
@@ -69,10 +74,9 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.11.0</version>
+        <version>3.16.0</version>
         <configuration>
-          <source>25</source>
-          <target>25</target>
+          <release>25</release>
         </configuration>
       </plugin>
       <plugin>

@@ -1,7 +1,7 @@
 name: Storage
 version: 1.0
 main: de.mcbesser.storage.Storage
-api-version: '26.1.1'
+api-version: '26.3'
 authors: [mcbesser]
 description: "Ein fortschrittliches Lager-System f\u00fcr Minecraft."
 permissions:

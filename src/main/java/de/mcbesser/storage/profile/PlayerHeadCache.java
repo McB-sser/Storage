@@ -1,9 +1,10 @@
 package de.mcbesser.storage.profile;
 
+import com.destroystokyo.paper.profile.PlayerProfile;
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
 import java.time.Duration;
 import java.util.Map;
@@ -17,6 +18,7 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.profile.PlayerTextures;
 
 public final class PlayerHeadCache {
 
@@ -59,15 +61,11 @@ public final class PlayerHeadCache {
         }
 
         try {
-            Object profile = createProfile(uniqueId, coalesce(name, entry.name()));
-            if (profile == null || !applySkin(profile, entry.skinUrl())) {
-                return;
-            }
-            applyProfile(meta, profile);
-        } catch (MalformedURLException exception) {
+            PlayerProfile profile = createProfile(uniqueId, coalesce(name, entry.name()));
+            applySkin(profile, entry.skinUrl());
+            meta.setPlayerProfile(profile);
+        } catch (MalformedURLException | IllegalArgumentException exception) {
             plugin.getLogger().log(Level.WARNING, "Ungueltige Skin-URL im Kopf-Cache fuer " + uniqueId, exception);
-        } catch (ReflectiveOperationException exception) {
-            plugin.getLogger().log(Level.WARNING, "Konnte gecachtes Kopfprofil nicht anwenden fuer " + uniqueId, exception);
         }
     }
 
@@ -76,27 +74,8 @@ public final class PlayerHeadCache {
             return;
         }
 
-        Object profile = createProfile(uniqueId, name);
-        if (profile == null) {
-            refreshInFlight.remove(uniqueId);
-            rememberFailure(uniqueId, name);
-            return;
-        }
-
-        CompletionStage<?> updateStage;
-        try {
-            Object updateResult = profile.getClass().getMethod("update").invoke(profile);
-            if (!(updateResult instanceof CompletionStage<?> stage)) {
-                refreshInFlight.remove(uniqueId);
-                rememberFailure(uniqueId, name);
-                return;
-            }
-            updateStage = stage;
-        } catch (ReflectiveOperationException exception) {
-            refreshInFlight.remove(uniqueId);
-            rememberFailure(uniqueId, name);
-            return;
-        }
+        PlayerProfile profile = createProfile(uniqueId, name);
+        CompletionStage<? extends PlayerProfile> updateStage = profile.update();
 
         updateStage.whenComplete((updatedProfile, throwable) -> {
             refreshInFlight.remove(uniqueId);
@@ -118,84 +97,24 @@ public final class PlayerHeadCache {
         });
     }
 
-    private Object createProfile(UUID uniqueId, String name) {
-        try {
-            if (name != null && !name.isBlank()) {
-                return Bukkit.class.getMethod("createPlayerProfile", UUID.class, String.class).invoke(null, uniqueId, name);
-            }
-        } catch (ReflectiveOperationException ignored) {
-        }
-        try {
-            return Bukkit.class.getMethod("createPlayerProfile", UUID.class).invoke(null, uniqueId);
-        } catch (ReflectiveOperationException ignored) {
-        }
-        try {
-            if (name != null && !name.isBlank()) {
-                return Bukkit.class.getMethod("createProfile", UUID.class, String.class).invoke(null, uniqueId, name);
-            }
-        } catch (ReflectiveOperationException ignored) {
-        }
-        try {
-            return Bukkit.class.getMethod("createProfile", UUID.class).invoke(null, uniqueId);
-        } catch (ReflectiveOperationException ignored) {
-        }
-        return null;
+    private PlayerProfile createProfile(UUID uniqueId, String name) {
+        return name != null && !name.isBlank()
+                ? Bukkit.createProfile(uniqueId, name)
+                : Bukkit.createProfile(uniqueId);
     }
 
-    private boolean applySkin(Object profile, String skinUrl) throws ReflectiveOperationException, MalformedURLException {
-        Object textures = profile.getClass().getMethod("getTextures").invoke(profile);
-        textures.getClass().getMethod("setSkin", URL.class).invoke(textures, new URL(skinUrl));
-        return true;
+    private void applySkin(PlayerProfile profile, String skinUrl) throws MalformedURLException {
+        PlayerTextures textures = profile.getTextures();
+        textures.setSkin(URI.create(skinUrl).toURL());
+        profile.setTextures(textures);
     }
 
-    private void applyProfile(SkullMeta meta, Object profile) throws ReflectiveOperationException {
-        Method playerProfileMethod = findCompatibleMethod(meta.getClass(), "setPlayerProfile", profile.getClass());
-        if (playerProfileMethod != null) {
-            playerProfileMethod.setAccessible(true);
-            playerProfileMethod.invoke(meta, profile);
-            return;
-        }
-
-        Method ownerProfileMethod = findCompatibleMethod(meta.getClass(), "setOwnerProfile", profile.getClass());
-        if (ownerProfileMethod != null) {
-            ownerProfileMethod.setAccessible(true);
-            ownerProfileMethod.invoke(meta, profile);
-            return;
-        }
-
-        throw new NoSuchMethodException("Keine kompatible setPlayerProfile/setOwnerProfile-Methode auf " + meta.getClass().getName());
+    private URL extractSkinUrl(PlayerProfile profile) {
+        return profile.getTextures().getSkin();
     }
 
-    private Method findCompatibleMethod(Class<?> targetClass, String methodName, Class<?> argumentType) {
-        for (Method method : targetClass.getMethods()) {
-            if (!method.getName().equals(methodName) || method.getParameterCount() != 1) {
-                continue;
-            }
-            Class<?> parameterType = method.getParameterTypes()[0];
-            if (parameterType.isAssignableFrom(argumentType)) {
-                return method;
-            }
-        }
-        return null;
-    }
-
-    private URL extractSkinUrl(Object profile) {
-        try {
-            Object textures = profile.getClass().getMethod("getTextures").invoke(profile);
-            Object skin = textures.getClass().getMethod("getSkin").invoke(textures);
-            return skin instanceof URL url ? url : null;
-        } catch (ReflectiveOperationException ignored) {
-            return null;
-        }
-    }
-
-    private String extractName(Object profile) {
-        try {
-            Object value = profile.getClass().getMethod("getName").invoke(profile);
-            return value instanceof String string ? string : null;
-        } catch (ReflectiveOperationException ignored) {
-            return null;
-        }
+    private String extractName(PlayerProfile profile) {
+        return profile.getName();
     }
 
     private void rememberFailure(UUID uniqueId, String name) {

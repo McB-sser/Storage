@@ -81,13 +81,14 @@ public class ColorMenu extends AbstractMenu {
 
             ItemStack item = player.getInventory().getItemInMainHand();
             if (item.getType().toString().contains("SHULKER_BOX")) {
-                item.setType(newType);
-                if (item.hasItemMeta() && item.getItemMeta() instanceof BlockStateMeta bsm
+                ItemStack recoloredItem = item.withType(newType);
+                if (recoloredItem.hasItemMeta() && recoloredItem.getItemMeta() instanceof BlockStateMeta bsm
                         && bsm.getBlockState() instanceof ShulkerBox shulkerState) {
                     shulkerState.setType(newType);
                     bsm.setBlockState(shulkerState);
-                    item.setItemMeta(bsm);
+                    recoloredItem.setItemMeta(bsm);
                 }
+                player.getInventory().setItemInMainHand(recoloredItem);
             }
 
             updatePlacedShulkerColors(shulkerId, newType, settings);

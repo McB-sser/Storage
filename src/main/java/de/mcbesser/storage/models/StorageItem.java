@@ -2,10 +2,8 @@ package de.mcbesser.storage.models;
 
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.io.BukkitObjectInputStream;
-import org.bukkit.util.io.BukkitObjectOutputStream;
 
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Base64;
 
@@ -53,28 +51,35 @@ public class StorageItem {
     }
 
     private String itemToBase64(ItemStack item) {
-        try {
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-            BukkitObjectOutputStream dataOutput = new BukkitObjectOutputStream(outputStream);
-            dataOutput.writeObject(item);
-            dataOutput.close();
-            return Base64.getEncoder().encodeToString(outputStream.toByteArray());
-        } catch (IOException e) {
-            throw new IllegalStateException("Unable to save item stack.", e);
-        }
+        return Base64.getEncoder().encodeToString(item.serializeAsBytes());
     }
 
     private ItemStack itemFromBase64(String data) {
         try {
-            // The MIME decoder accepts both the old line-wrapped representation
-            // and the unwrapped Base64 produced by itemToBase64.
-            ByteArrayInputStream inputStream = new ByteArrayInputStream(Base64.getMimeDecoder().decode(data));
-            BukkitObjectInputStream dataInput = new BukkitObjectInputStream(inputStream);
-            ItemStack item = (ItemStack) dataInput.readObject();
-            dataInput.close();
-            return item;
+            // The MIME decoder also accepts Base64Coder's legacy line-wrapped values.
+            byte[] bytes = Base64.getMimeDecoder().decode(data);
+            if (isLegacyObjectStream(bytes)) {
+                return deserializeLegacy(bytes);
+            }
+            return ItemStack.deserializeBytes(bytes);
         } catch (IOException | ClassNotFoundException | IllegalArgumentException e) {
             return null;
+        }
+    }
+
+    private boolean isLegacyObjectStream(byte[] bytes) {
+        return bytes.length >= 4
+                && (bytes[0] & 0xff) == 0xac
+                && (bytes[1] & 0xff) == 0xed
+                && bytes[2] == 0
+                && bytes[3] == 5;
+    }
+
+    @SuppressWarnings("deprecation")
+    private ItemStack deserializeLegacy(byte[] bytes) throws IOException, ClassNotFoundException {
+        try (ByteArrayInputStream inputStream = new ByteArrayInputStream(bytes);
+                BukkitObjectInputStream dataInput = new BukkitObjectInputStream(inputStream)) {
+            return (ItemStack) dataInput.readObject();
         }
     }
 }
