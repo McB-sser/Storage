@@ -3,11 +3,11 @@ package de.mcbesser.storage.models;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.io.BukkitObjectInputStream;
 import org.bukkit.util.io.BukkitObjectOutputStream;
-import org.yaml.snakeyaml.external.biz.base64Coder.Base64Coder;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Base64;
 
 public class StorageItem {
     private String base64Data;
@@ -58,7 +58,7 @@ public class StorageItem {
             BukkitObjectOutputStream dataOutput = new BukkitObjectOutputStream(outputStream);
             dataOutput.writeObject(item);
             dataOutput.close();
-            return Base64Coder.encodeLines(outputStream.toByteArray());
+            return Base64.getEncoder().encodeToString(outputStream.toByteArray());
         } catch (IOException e) {
             throw new IllegalStateException("Unable to save item stack.", e);
         }
@@ -66,12 +66,14 @@ public class StorageItem {
 
     private ItemStack itemFromBase64(String data) {
         try {
-            ByteArrayInputStream inputStream = new ByteArrayInputStream(Base64Coder.decodeLines(data));
+            // The MIME decoder accepts both the old line-wrapped representation
+            // and the unwrapped Base64 produced by itemToBase64.
+            ByteArrayInputStream inputStream = new ByteArrayInputStream(Base64.getMimeDecoder().decode(data));
             BukkitObjectInputStream dataInput = new BukkitObjectInputStream(inputStream);
             ItemStack item = (ItemStack) dataInput.readObject();
             dataInput.close();
             return item;
-        } catch (IOException | ClassNotFoundException e) {
+        } catch (IOException | ClassNotFoundException | IllegalArgumentException e) {
             return null;
         }
     }
