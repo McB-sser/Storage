@@ -257,12 +257,13 @@ public final class StorageDisplayManager {
 
         int requested = rightClick ? material.getMaxStackSize() : 1;
         int amount = Math.min(available, requested);
-        int removed = lager.removeByMaterial(material, amount);
+        int removed = plugin.getLagerManager().takeMaterialFromLager(storageOwner, material, amount);
         if (removed <= 0) {
+            player.sendMessage(net.kyori.adventure.text.Component.text("Lager konnte nicht sicher gespeichert werden.",
+                    net.kyori.adventure.text.format.NamedTextColor.RED));
             return true;
         }
 
-        plugin.getLagerManager().saveLager(storageOwner);
         ItemStack give = new ItemStack(material, removed);
         Map<Integer, ItemStack> overflow = player.getInventory().addItem(give);
         for (ItemStack rest : overflow.values()) {
@@ -779,11 +780,10 @@ public final class StorageDisplayManager {
             case 51 -> new ColorMenu(plugin, shulkerId).open(player);
             case 52 -> {
                 if (rightClick) {
-                    int taken = lager.takeStoredExp(100);
+                    int taken = plugin.getLagerManager().takeStoredExperience(storageOwner, 100);
                     if (taken <= 0) {
                         player.sendMessage(Component.text("Kein XP im Speicher.", NamedTextColor.YELLOW));
                     } else {
-                        plugin.getLagerManager().saveLager(storageOwner);
                         dropExperience(player, taken);
                         player.sendMessage(Component.text(taken + " XP als Orbs ausgegeben.", NamedTextColor.GREEN));
                     }
@@ -792,10 +792,12 @@ public final class StorageDisplayManager {
                     if (current <= 0) {
                         player.sendMessage(Component.text("Du hast keine XP zum Einlagern.", NamedTextColor.YELLOW));
                     } else {
-                        lager.addStoredExp(current);
-                        plugin.getLagerManager().saveLager(storageOwner);
-                        setPlayerTotalExperience(player, 0);
-                        player.sendMessage(Component.text(current + " XP eingelagert.", NamedTextColor.GREEN));
+                        if (plugin.getLagerManager().addStoredExperience(storageOwner, current)) {
+                            setPlayerTotalExperience(player, 0);
+                            player.sendMessage(Component.text(current + " XP eingelagert.", NamedTextColor.GREEN));
+                        } else {
+                            player.sendMessage(Component.text("EXP konnte nicht sicher gespeichert werden.", NamedTextColor.RED));
+                        }
                     }
                 }
             }

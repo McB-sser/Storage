@@ -132,12 +132,10 @@ public class LagerView extends AbstractMenu {
             inventory.setItem(slot, createItem(Material.RED_STAINED_GLASS_PANE, "Gesperrt"));
         }
 
-        addNavigationItems(player);
+        addNavigationItems(player, filteredItems);
     }
 
-    protected void addNavigationItems(Player player) {
-        PlayerLager lager = plugin.getLagerManager().getLager(resolveStorageOwner(player));
-        List<StorageItem> filteredItems = getFilteredItems(lager);
+    private void addNavigationItems(Player player, List<StorageItem> filteredItems) {
         int totalPages = Math.max(1, (int) Math.ceil(filteredItems.size() / 45.0));
 
         inventory.setItem(45, createItem(Material.ARROW, "Zur\u00fcck zum Hauptmen\u00fc"));
@@ -373,15 +371,29 @@ public class LagerView extends AbstractMenu {
             }
 
             if (amountToTake > 0) {
-                result.setAmount(amountToTake);
+                amountToTake = Math.min(amountToTake, getInsertableAmount(player.getInventory(), result));
+                if (amountToTake <= 0) {
+                    player.sendMessage(Component.text("Inventar ist voll!", NamedTextColor.RED));
+                    return;
+                }
+                int removed = plugin.getLagerManager().takeItemFromLager(storageOwner, result, amountToTake);
+                if (removed <= 0) {
+                    player.sendMessage(Component.text("Lager konnte nicht sicher gespeichert werden.", NamedTextColor.RED));
+                    return;
+                }
+                result.setAmount(removed);
                 java.util.Map<Integer, ItemStack> overflow = player.getInventory().addItem(result);
                 int notInserted = overflow.values().stream().mapToInt(ItemStack::getAmount).sum();
-                int inserted = amountToTake - notInserted;
+                int inserted = removed - notInserted;
                 if (inserted > 0) {
-                    lager.removeItem(result, inserted);
-                    plugin.getLagerManager().saveLager(storageOwner);
+                    if (notInserted > 0) {
+                        ItemStack rollback = result.clone();
+                        rollback.setAmount(notInserted);
+                        plugin.getLagerManager().addItemToLager(storageOwner, shulkerId, rollback);
+                    }
                     setMenuItems(player);
                 } else {
+                    plugin.getLagerManager().addItemToLager(storageOwner, shulkerId, result);
                     player.sendMessage(Component.text("Inventar ist voll!", NamedTextColor.RED));
                 }
             }

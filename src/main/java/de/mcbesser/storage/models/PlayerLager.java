@@ -74,19 +74,24 @@ public class PlayerLager {
         return toStore;
     }
 
-    public void removeItem(ItemStack item, int amount) {
+    public int removeItem(ItemStack item, int amount) {
+        if (item == null || amount <= 0) {
+            return 0;
+        }
         for (int i = 0; i < items.size(); i++) {
             StorageItem storageItem = items.get(i);
             ItemStack stack = storageItem.toItemStack();
             if (stack != null && stack.isSimilar(item)) {
-                if (storageItem.getAmount() <= amount) {
+                int removed = Math.min(storageItem.getAmount(), amount);
+                if (storageItem.getAmount() <= removed) {
                     items.remove(i);
                 } else {
-                    storageItem.setAmount(storageItem.getAmount() - amount);
+                    storageItem.setAmount(storageItem.getAmount() - removed);
                 }
-                return;
+                return removed;
             }
         }
+        return 0;
     }
 
     public UUID getOwner() {
@@ -151,6 +156,37 @@ public class PlayerLager {
 
     public void setItems(List<StorageItem> items) {
         this.items = items;
+    }
+
+    public PlayerLager copy() {
+        ensureDefaults();
+        PlayerLager copy = new PlayerLager(owner);
+        List<StorageItem> copiedItems = new ArrayList<>(items.size());
+        for (StorageItem item : items) {
+            copiedItems.add(new StorageItem(item.getBase64Data(), item.getAmount()));
+        }
+        copy.items = copiedItems;
+        copy.unlockedSlots = unlockedSlots;
+        copy.capacity = capacity;
+        copy.vacuumFuelMaterial = vacuumFuelMaterial;
+        copy.vacuumCharge = vacuumCharge;
+        copy.storedExp = storedExp;
+        copy.trustedPlayers = new ArrayList<>(trustedPlayers);
+        return copy;
+    }
+
+    public void restoreFrom(PlayerLager snapshot) {
+        if (snapshot == null) {
+            return;
+        }
+        PlayerLager copy = snapshot.copy();
+        items = copy.items;
+        unlockedSlots = copy.unlockedSlots;
+        capacity = copy.capacity;
+        vacuumFuelMaterial = copy.vacuumFuelMaterial;
+        vacuumCharge = copy.vacuumCharge;
+        storedExp = copy.storedExp;
+        trustedPlayers = copy.trustedPlayers;
     }
 
     public int getUnlockedSlots() {

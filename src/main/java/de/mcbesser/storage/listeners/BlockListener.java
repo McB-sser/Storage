@@ -594,11 +594,13 @@ public class BlockListener implements Listener {
         }
 
         PlayerLager lager = plugin.getLagerManager().getLager(owner);
+        PlayerLager lagerBefore = lager.copy();
         Material refillMat = settings.getFillItemMaterial() != null
                 ? Material.matchMaterial(settings.getFillItemMaterial())
                 : null;
 
         Inventory inv = shulker.getInventory();
+        ItemStack[] inventoryBefore = cloneContents(inv.getContents());
         boolean changed = false;
         int reserveSlots = 5;
         int refillLimit = Math.max(0, inv.getSize() - reserveSlots);
@@ -696,8 +698,20 @@ public class BlockListener implements Listener {
                     player.updateInventory();
                 }
             }
-            plugin.getLagerManager().saveLager(owner);
+            if (!plugin.getLagerManager().saveLager(owner)) {
+                lager.restoreFrom(lagerBefore);
+                inv.setContents(inventoryBefore);
+                plugin.getLogger().warning("Shulker automation rolled back because storage could not be saved: " + owner);
+            }
         }
+    }
+
+    private ItemStack[] cloneContents(ItemStack[] contents) {
+        ItemStack[] copy = new ItemStack[contents.length];
+        for (int i = 0; i < contents.length; i++) {
+            copy[i] = contents[i] == null ? null : contents[i].clone();
+        }
+        return copy;
     }
 
     private int moveRefillItemIntoManagedArea(Inventory inv, ItemStack source, Material refillMat, int refillLimit) {

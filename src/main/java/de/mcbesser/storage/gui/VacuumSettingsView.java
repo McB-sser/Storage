@@ -142,8 +142,13 @@ public class VacuumSettingsView extends AbstractMenu {
                         player.sendMessage(Component.text("Dieses Item ist kein g\u00fcltiger Brennstoff.", NamedTextColor.RED));
                         return;
                     }
+                    String previousFuel = lager.getVacuumFuelMaterial();
                     lager.setVacuumFuelMaterial(cursor.getType().name());
-                    plugin.getLagerManager().saveLager(storageOwner);
+                    if (!plugin.getLagerManager().saveLager(storageOwner)) {
+                        lager.setVacuumFuelMaterial(previousFuel);
+                        player.sendMessage(Component.text("Brennstoff konnte nicht sicher gespeichert werden.", NamedTextColor.RED));
+                        return;
+                    }
                     player.sendMessage(Component.text("Brennstoff (global) gesetzt: " + cursor.getType().name(),
                             NamedTextColor.GREEN));
                     setMenuItems(player);
@@ -167,8 +172,14 @@ public class VacuumSettingsView extends AbstractMenu {
                     return;
                 }
 
-                lager.addVacuumCharge(consumption.chargeAdded());
-                plugin.getLagerManager().saveLager(storageOwner);
+                if (!plugin.getLagerManager().addVacuumCharge(storageOwner, consumption.chargeAdded())) {
+                    for (ItemStack overflow : player.getInventory()
+                            .addItem(new ItemStack(fuelMat, consumption.consumed())).values()) {
+                        player.getWorld().dropItemNaturally(player.getLocation(), overflow);
+                    }
+                    player.sendMessage(Component.text("Ladung konnte nicht sicher gespeichert werden.", NamedTextColor.RED));
+                    return;
+                }
                 addRemainderItems(player, consumption.remainders());
                 player.sendMessage(Component.text(
                         consumption.consumed() + "x " + fuelMat.name() + " verbraucht, +" + consumption.chargeAdded()

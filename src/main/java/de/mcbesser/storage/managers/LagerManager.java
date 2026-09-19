@@ -10,6 +10,7 @@ import de.mcbesser.storage.models.StorageItem;
 import org.dizitart.no2.Nitrite;
 import org.dizitart.no2.collection.Document;
 import org.dizitart.no2.collection.NitriteCollection;
+import org.dizitart.no2.collection.UpdateOptions;
 import org.dizitart.no2.filters.FluentFilter;
 import org.dizitart.no2.mvstore.MVStoreModule;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -18,10 +19,15 @@ import org.bukkit.persistence.PersistentDataType;
 
 import java.io.File;
 import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Reader;
-import java.io.Writer;
+import java.nio.channels.FileChannel;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -34,9 +40,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
 public class LagerManager {
+    private static final long SAVE_DEBOUNCE_MILLIS = 150L;
+
     private final Storage plugin;
     private final Gson gson;
     private final File dataFolder;
@@ -44,10 +57,19 @@ public class LagerManager {
 
     private final Map<UUID, PlayerLager> playerLagers = new HashMap<>();
     private final Map<UUID, ShulkerSettings> shulkerSettings = new HashMap<>();
+    private final Map<UUID, List<PersistedItem>> persistedPlayerItems = new HashMap<>();
+    private final Map<UUID, PersistedMeta> persistedPlayerMeta = new HashMap<>();
+    private final Map<UUID, ScheduledFuture<?>> pendingShulkerSaves = new ConcurrentHashMap<>();
+    private final ScheduledExecutorService saveExecutor = Executors.newSingleThreadScheduledExecutor(runnable -> {
+        Thread thread = new Thread(runnable, "Storage-Database-Writer");
+        thread.setDaemon(true);
+        return thread;
+    });
 
     private boolean mysqlEnabled;
     private boolean nitriteEnabled;
     private Connection mysqlConnection;
+    private long lastMySqlValidationNanos;
     private Nitrite nitriteDb;
     private NitriteCollection nitritePlayers;
     private NitriteCollection nitriteShulkers;
@@ -117,6 +139,7 @@ public class LagerManager {
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
             mysqlConnection = DriverManager.getConnection(jdbcUrl, user, pass);
+            lastMySqlValidationNanos = System.nanoTime();
             createTablesIfMissing();
             return true;
         } catch (ClassNotFoundException | SQLException e) {
@@ -200,12 +223,26 @@ public class LagerManager {
                 return mysqlEnabled && connectMySql();
             }
 
-            if (mysqlConnection.isClosed() || !mysqlConnection.isValid(2)) {
+            if (mysqlConnection.isClosed()) {
                 if (!mysqlEnabled) {
                     return false;
                 }
                 return connectMySql();
             }
+
+            // A validation ping is network I/O. Doing it for every inventory click was
+            // one of the main sources of the visible delay on remote MySQL servers.
+            long validationAge = System.nanoTime() - lastMySqlValidationNanos;
+            if (validationAge < TimeUnit.SECONDS.toNanos(30)) {
+                return true;
+            }
+            if (!mysqlConnection.isValid(2)) {
+                if (!mysqlEnabled) {
+                    return false;
+                }
+                return connectMySql();
+            }
+            lastMySqlValidationNanos = System.nanoTime();
             return true;
         } catch (SQLException e) {
             if (!mysqlEnabled) {
@@ -255,7 +292,7 @@ public class LagerManager {
         return loaded;
     }
 
-    private PlayerLager loadLagerJson(UUID playerUuid) {
+    private synchronized PlayerLager loadLagerJson(UUID playerUuid) {
         File file = new File(dataFolder, playerUuid + ".json");
         if (!file.exists()) {
             return null;
@@ -269,7 +306,7 @@ public class LagerManager {
         }
     }
 
-    private PlayerLager loadLagerMySql(UUID playerUuid) {
+    private synchronized PlayerLager loadLagerMySql(UUID playerUuid) {
         if (!ensureMySqlConnection()) {
             return null;
         }
@@ -307,7 +344,7 @@ public class LagerManager {
         }
     }
 
-    private PlayerLager loadLagerNitrite(UUID playerUuid) {
+    private synchronized PlayerLager loadLagerNitrite(UUID playerUuid) {
         if (!ensureNitriteConnection()) {
             return loadLagerJson(playerUuid);
         }
@@ -332,54 +369,64 @@ public class LagerManager {
         return legacy;
     }
 
-    public void saveLager(UUID playerUuid) {
+    public boolean saveLager(UUID playerUuid) {
         PlayerLager lager = playerLagers.get(playerUuid);
         if (lager == null) {
-            return;
+            return false;
         }
 
+        // Item quantities are write-through: the call only succeeds once the storage
+        // backend committed the new state. GUI-only shulker settings remain debounced.
+        return persistLager(playerUuid, lager);
+    }
+
+    private boolean persistLager(UUID playerUuid, PlayerLager lager) {
         if (mysqlEnabled) {
-            saveLagerMySql(playerUuid, lager);
+            return saveLagerMySql(playerUuid, lager);
         } else if (nitriteEnabled) {
-            saveLagerNitrite(playerUuid, lager);
+            return saveLagerNitrite(playerUuid, lager);
         } else {
-            saveLagerJson(playerUuid, lager);
+            return saveLagerJson(playerUuid, lager);
         }
     }
 
-    private void saveLagerJson(UUID playerUuid, PlayerLager lager) {
+    private synchronized boolean saveLagerJson(UUID playerUuid, PlayerLager lager) {
         File file = new File(dataFolder, playerUuid + ".json");
-        try (Writer writer = new FileWriter(file)) {
-            gson.toJson(lager, writer);
-        } catch (IOException e) {
-            plugin.getLogger().log(Level.SEVERE, "Could not save lager for " + playerUuid, e);
+        if (!writeJsonAtomically(file, lager)) {
+            plugin.getLogger().severe("Could not save lager for " + playerUuid);
+            return false;
         }
+        return true;
     }
 
-    private void saveLagerMySql(UUID playerUuid, PlayerLager lager) {
+    private synchronized boolean saveLagerMySql(UUID playerUuid, PlayerLager lager) {
         if (!ensureMySqlConnection()) {
-            return;
+            return false;
         }
 
         if (!saveLagerMySqlStructured(playerUuid, lager)) {
             plugin.getLogger().severe("Could not save lager to mysql (structured) for " + playerUuid);
+            return false;
         }
+        return true;
     }
 
-    private void saveLagerNitrite(UUID playerUuid, PlayerLager lager) {
+    private synchronized boolean saveLagerNitrite(UUID playerUuid, PlayerLager lager) {
         if (!ensureNitriteConnection()) {
-            saveLagerJson(playerUuid, lager);
-            return;
+            return saveLagerJson(playerUuid, lager);
         }
 
         try {
-            nitritePlayers.remove(FluentFilter.where("player_uuid").eq(playerUuid.toString()));
             Document document = Document.createDocument("player_uuid", playerUuid.toString())
                     .put("json_data", gson.toJson(lager));
-            nitritePlayers.insert(document);
+            nitritePlayers.update(
+                    FluentFilter.where("player_uuid").eq(playerUuid.toString()),
+                    document,
+                    UpdateOptions.updateOptions(true, true));
+            return true;
         } catch (Exception e) {
             plugin.getLogger().log(Level.SEVERE, "Could not save lager to nitrite for " + playerUuid, e);
-            saveLagerJson(playerUuid, lager);
+            return saveLagerJson(playerUuid, lager);
         }
     }
 
@@ -427,6 +474,8 @@ public class LagerManager {
                     }
                 }
                 lager.setItems(items);
+                persistedPlayerItems.put(playerUuid, toPersistedItems(items));
+                persistedPlayerMeta.put(playerUuid, toPersistedMeta(lager));
                 return lager;
             }
         } catch (SQLException e) {
@@ -437,59 +486,76 @@ public class LagerManager {
 
     private boolean saveLagerMySqlStructured(UUID playerUuid, PlayerLager lager) {
         boolean previousAutoCommit = true;
+        List<PersistedItem> currentItems = toPersistedItems(lager.getItems());
+        List<PersistedItem> previousItems = persistedPlayerItems.get(playerUuid);
+        PersistedMeta currentMeta = toPersistedMeta(lager);
+        PersistedMeta previousMeta = persistedPlayerMeta.get(playerUuid);
         try {
             previousAutoCommit = mysqlConnection.getAutoCommit();
             mysqlConnection.setAutoCommit(false);
 
-            String upsertMeta = "INSERT INTO lager_players_meta "
-                    + "(player_uuid, unlocked_slots, capacity, vacuum_fuel_material, vacuum_charge, stored_exp, trusted_players_json) "
-                    + "VALUES (?, ?, ?, ?, ?, ?, ?) "
-                    + "ON DUPLICATE KEY UPDATE "
-                    + "unlocked_slots = VALUES(unlocked_slots), "
-                    + "capacity = VALUES(capacity), "
-                    + "vacuum_fuel_material = VALUES(vacuum_fuel_material), "
-                    + "vacuum_charge = VALUES(vacuum_charge), "
-                    + "stored_exp = VALUES(stored_exp), "
-                    + "trusted_players_json = VALUES(trusted_players_json)";
+            if (!currentMeta.equals(previousMeta)) {
+                String upsertMeta = "INSERT INTO lager_players_meta "
+                        + "(player_uuid, unlocked_slots, capacity, vacuum_fuel_material, vacuum_charge, stored_exp, trusted_players_json) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?) "
+                        + "ON DUPLICATE KEY UPDATE "
+                        + "unlocked_slots = VALUES(unlocked_slots), "
+                        + "capacity = VALUES(capacity), "
+                        + "vacuum_fuel_material = VALUES(vacuum_fuel_material), "
+                        + "vacuum_charge = VALUES(vacuum_charge), "
+                        + "stored_exp = VALUES(stored_exp), "
+                        + "trusted_players_json = VALUES(trusted_players_json)";
 
-            try (PreparedStatement metaPs = mysqlConnection.prepareStatement(upsertMeta)) {
-                metaPs.setString(1, playerUuid.toString());
-                metaPs.setInt(2, lager.getUnlockedSlots());
-                metaPs.setInt(3, lager.getCapacity());
-                metaPs.setString(4, lager.getVacuumFuelMaterial());
-                metaPs.setInt(5, lager.getVacuumCharge());
-                metaPs.setInt(6, lager.getStoredExp());
-                metaPs.setString(7, gson.toJson(lager.getTrustedPlayers()));
-                metaPs.executeUpdate();
-            }
-
-            try (PreparedStatement deleteItems = mysqlConnection
-                    .prepareStatement("DELETE FROM lager_player_items WHERE player_uuid = ?")) {
-                deleteItems.setString(1, playerUuid.toString());
-                deleteItems.executeUpdate();
+                try (PreparedStatement metaPs = mysqlConnection.prepareStatement(upsertMeta)) {
+                    metaPs.setString(1, playerUuid.toString());
+                    metaPs.setInt(2, currentMeta.unlockedSlots());
+                    metaPs.setInt(3, currentMeta.capacity());
+                    metaPs.setString(4, currentMeta.vacuumFuelMaterial());
+                    metaPs.setInt(5, currentMeta.vacuumCharge());
+                    metaPs.setInt(6, currentMeta.storedExp());
+                    metaPs.setString(7, currentMeta.trustedPlayersJson());
+                    metaPs.executeUpdate();
+                }
             }
 
             String insertItem = "INSERT INTO lager_player_items (player_uuid, slot_index, base64_data, amount) "
-                    + "VALUES (?, ?, ?, ?)";
+                    + "VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE "
+                    + "base64_data = VALUES(base64_data), amount = VALUES(amount)";
             try (PreparedStatement itemPs = mysqlConnection.prepareStatement(insertItem)) {
-                int idx = 0;
-                for (StorageItem item : lager.getItems()) {
-                    if (item == null || item.getBase64Data() == null || item.getBase64Data().isEmpty()
-                            || item.getAmount() <= 0) {
+                int changedRows = 0;
+                for (int idx = 0; idx < currentItems.size(); idx++) {
+                    PersistedItem item = currentItems.get(idx);
+                    if (previousItems != null && idx < previousItems.size()
+                            && item.equals(previousItems.get(idx))) {
                         continue;
                     }
                     itemPs.setString(1, playerUuid.toString());
-                    itemPs.setInt(2, idx++);
-                    itemPs.setString(3, item.getBase64Data());
-                    itemPs.setInt(4, item.getAmount());
+                    itemPs.setInt(2, idx);
+                    itemPs.setString(3, item.base64Data());
+                    itemPs.setInt(4, item.amount());
                     itemPs.addBatch();
+                    changedRows++;
                 }
-                itemPs.executeBatch();
+                if (changedRows > 0) {
+                    itemPs.executeBatch();
+                }
+            }
+
+            if (previousItems == null || previousItems.size() > currentItems.size()) {
+                try (PreparedStatement deleteItems = mysqlConnection.prepareStatement(
+                        "DELETE FROM lager_player_items WHERE player_uuid = ? AND slot_index >= ?")) {
+                    deleteItems.setString(1, playerUuid.toString());
+                    deleteItems.setInt(2, currentItems.size());
+                    deleteItems.executeUpdate();
+                }
             }
 
             mysqlConnection.commit();
+            persistedPlayerItems.put(playerUuid, currentItems);
+            persistedPlayerMeta.put(playerUuid, currentMeta);
             return true;
         } catch (SQLException e) {
+            lastMySqlValidationNanos = 0L;
             try {
                 mysqlConnection.rollback();
             } catch (SQLException rollbackError) {
@@ -524,9 +590,105 @@ public class LagerManager {
         int added = lager.addItemWithLimits(item, lager.getUnlockedSlots(), lager.getCapacity());
 
         if (added > 0 && saveImmediately) {
-            saveLager(playerUuid);
+            if (!saveLager(playerUuid)) {
+                lager.removeItem(item, added);
+                return 0;
+            }
         }
         return added;
+    }
+
+    public int takeItemFromLager(UUID playerUuid, ItemStack item, int amount) {
+        PlayerLager lager = getLager(playerUuid);
+        int removed = lager.removeItem(item, amount);
+        if (removed <= 0) {
+            return 0;
+        }
+        if (!saveLager(playerUuid)) {
+            ItemStack rollback = item.clone();
+            rollback.setAmount(removed);
+            lager.addItem(rollback);
+            return 0;
+        }
+        return removed;
+    }
+
+    public int addVacuumItemToLager(UUID playerUuid, ItemStack item) {
+        if (item == null || item.getType().isAir()) {
+            return 0;
+        }
+        PlayerLager lager = getLager(playerUuid);
+        int chargeBefore = lager.getVacuumCharge();
+        int allowed = Math.min(item.getAmount(), chargeBefore);
+        if (allowed <= 0) {
+            return 0;
+        }
+        ItemStack limited = item.clone();
+        limited.setAmount(allowed);
+        int added = lager.addItemWithLimits(limited, lager.getUnlockedSlots(), lager.getCapacity());
+        if (added <= 0) {
+            return 0;
+        }
+        lager.takeVacuumCharge(added);
+        if (!saveLager(playerUuid)) {
+            lager.removeItem(limited, added);
+            lager.setVacuumCharge(chargeBefore);
+            return 0;
+        }
+        return added;
+    }
+
+    public int takeMaterialFromLager(UUID playerUuid, org.bukkit.Material material, int amount) {
+        PlayerLager lager = getLager(playerUuid);
+        int removed = lager.removeByMaterial(material, amount);
+        if (removed <= 0) {
+            return 0;
+        }
+        if (!saveLager(playerUuid)) {
+            lager.addItem(new ItemStack(material, removed));
+            return 0;
+        }
+        return removed;
+    }
+
+    public boolean addStoredExperience(UUID playerUuid, int amount) {
+        if (amount <= 0) {
+            return false;
+        }
+        PlayerLager lager = getLager(playerUuid);
+        lager.addStoredExp(amount);
+        if (saveLager(playerUuid)) {
+            return true;
+        }
+        lager.takeStoredExp(amount);
+        return false;
+    }
+
+    public int takeStoredExperience(UUID playerUuid, int amount) {
+        PlayerLager lager = getLager(playerUuid);
+        int taken = lager.takeStoredExp(amount);
+        if (taken <= 0) {
+            return 0;
+        }
+        if (saveLager(playerUuid)) {
+            return taken;
+        }
+        lager.addStoredExp(taken);
+        return 0;
+    }
+
+    public boolean addVacuumCharge(UUID playerUuid, int amount) {
+        if (amount <= 0) {
+            return false;
+        }
+        PlayerLager lager = getLager(playerUuid);
+        int previous = lager.getVacuumCharge();
+        lager.addVacuumCharge(amount);
+        if (saveLager(playerUuid)) {
+            return true;
+        }
+        lager.setVacuumCharge(previous);
+        return false;
     }
 
     public ShulkerSettings getShulkerSettings(UUID shulkerId) {
@@ -545,7 +707,7 @@ public class LagerManager {
         return loaded;
     }
 
-    private ShulkerSettings loadShulkerSettingsJson(UUID shulkerId) {
+    private synchronized ShulkerSettings loadShulkerSettingsJson(UUID shulkerId) {
         File file = new File(shulkerFolder, shulkerId + ".json");
         if (!file.exists()) {
             return null;
@@ -559,7 +721,7 @@ public class LagerManager {
         }
     }
 
-    private ShulkerSettings loadShulkerSettingsMySql(UUID shulkerId) {
+    private synchronized ShulkerSettings loadShulkerSettingsMySql(UUID shulkerId) {
         if (!ensureMySqlConnection()) {
             return null;
         }
@@ -580,7 +742,7 @@ public class LagerManager {
         }
     }
 
-    private ShulkerSettings loadShulkerSettingsNitrite(UUID shulkerId) {
+    private synchronized ShulkerSettings loadShulkerSettingsNitrite(UUID shulkerId) {
         if (!ensureNitriteConnection()) {
             return loadShulkerSettingsJson(shulkerId);
         }
@@ -611,6 +773,22 @@ public class LagerManager {
             return;
         }
 
+        ShulkerSettings snapshot = gson.fromJson(gson.toJson(settings), ShulkerSettings.class);
+        scheduleShulkerSave(shulkerId, snapshot);
+    }
+
+    private void scheduleShulkerSave(UUID shulkerId, ShulkerSettings snapshot) {
+        pendingShulkerSaves.compute(shulkerId, (uuid, previous) -> {
+            if (previous != null) {
+                previous.cancel(false);
+            }
+            return saveExecutor.schedule(() -> {
+                persistShulkerSettings(uuid, snapshot);
+            }, SAVE_DEBOUNCE_MILLIS, TimeUnit.MILLISECONDS);
+        });
+    }
+
+    private void persistShulkerSettings(UUID shulkerId, ShulkerSettings settings) {
         if (mysqlEnabled) {
             saveShulkerSettingsMySql(shulkerId, settings);
         } else if (nitriteEnabled) {
@@ -620,16 +798,57 @@ public class LagerManager {
         }
     }
 
-    private void saveShulkerSettingsJson(UUID shulkerId, ShulkerSettings settings) {
+    private List<PersistedItem> toPersistedItems(List<StorageItem> items) {
+        List<PersistedItem> result = new ArrayList<>();
+        for (StorageItem item : items) {
+            if (item == null || item.getBase64Data() == null || item.getBase64Data().isEmpty()
+                    || item.getAmount() <= 0) {
+                continue;
+            }
+            result.add(new PersistedItem(item.getBase64Data(), item.getAmount()));
+        }
+        return result;
+    }
+
+    private PersistedMeta toPersistedMeta(PlayerLager lager) {
+        return new PersistedMeta(
+                lager.getUnlockedSlots(),
+                lager.getCapacity(),
+                lager.getVacuumFuelMaterial(),
+                lager.getVacuumCharge(),
+                lager.getStoredExp(),
+                gson.toJson(lager.getTrustedPlayers()));
+    }
+
+    private synchronized void saveShulkerSettingsJson(UUID shulkerId, ShulkerSettings settings) {
         File file = new File(shulkerFolder, shulkerId + ".json");
-        try (Writer writer = new FileWriter(file)) {
-            gson.toJson(settings, writer);
-        } catch (IOException e) {
-            plugin.getLogger().log(Level.SEVERE, "Could not save shulker settings " + shulkerId, e);
+        if (!writeJsonAtomically(file, settings)) {
+            plugin.getLogger().severe("Could not save shulker settings " + shulkerId);
         }
     }
 
-    private void saveShulkerSettingsMySql(UUID shulkerId, ShulkerSettings settings) {
+    private boolean writeJsonAtomically(File file, Object value) {
+        Path target = file.toPath();
+        Path temporary = target.resolveSibling(target.getFileName() + ".tmp");
+        try {
+            Files.writeString(temporary, gson.toJson(value), StandardCharsets.UTF_8,
+                    StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
+            try (FileChannel channel = FileChannel.open(temporary, StandardOpenOption.WRITE)) {
+                channel.force(true);
+            }
+            try {
+                Files.move(temporary, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            } catch (AtomicMoveNotSupportedException ignored) {
+                Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING);
+            }
+            return true;
+        } catch (IOException e) {
+            plugin.getLogger().log(Level.SEVERE, "Atomic JSON write failed for " + file.getName(), e);
+            return false;
+        }
+    }
+
+    private synchronized void saveShulkerSettingsMySql(UUID shulkerId, ShulkerSettings settings) {
         if (!ensureMySqlConnection()) {
             return;
         }
@@ -645,17 +864,19 @@ public class LagerManager {
         }
     }
 
-    private void saveShulkerSettingsNitrite(UUID shulkerId, ShulkerSettings settings) {
+    private synchronized void saveShulkerSettingsNitrite(UUID shulkerId, ShulkerSettings settings) {
         if (!ensureNitriteConnection()) {
             saveShulkerSettingsJson(shulkerId, settings);
             return;
         }
 
         try {
-            nitriteShulkers.remove(FluentFilter.where("shulker_uuid").eq(shulkerId.toString()));
             Document document = Document.createDocument("shulker_uuid", shulkerId.toString())
                     .put("json_data", gson.toJson(settings));
-            nitriteShulkers.insert(document);
+            nitriteShulkers.update(
+                    FluentFilter.where("shulker_uuid").eq(shulkerId.toString()),
+                    document,
+                    UpdateOptions.updateOptions(true, true));
         } catch (Exception e) {
             plugin.getLogger().log(Level.SEVERE, "Could not save shulker settings to nitrite " + shulkerId, e);
             saveShulkerSettingsJson(shulkerId, settings);
@@ -663,15 +884,26 @@ public class LagerManager {
     }
 
     public void saveAllData() {
-        for (UUID playerUuid : playerLagers.keySet()) {
-            saveLager(playerUuid);
+        pendingShulkerSaves.values().forEach(future -> future.cancel(false));
+        pendingShulkerSaves.clear();
+
+        for (Map.Entry<UUID, PlayerLager> entry : playerLagers.entrySet()) {
+            persistLager(entry.getKey(), entry.getValue());
         }
-        for (UUID shulkerId : shulkerSettings.keySet()) {
-            saveShulkerSettings(shulkerId);
+        for (Map.Entry<UUID, ShulkerSettings> entry : shulkerSettings.entrySet()) {
+            persistShulkerSettings(entry.getKey(), entry.getValue());
         }
     }
 
     public void shutdown() {
+        saveExecutor.shutdown();
+        try {
+            if (!saveExecutor.awaitTermination(10, TimeUnit.SECONDS)) {
+                plugin.getLogger().warning("Storage writer did not stop within 10 seconds.");
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
         if (mysqlConnection != null) {
             try {
                 mysqlConnection.close();
@@ -694,6 +926,13 @@ public class LagerManager {
                 nitriteShulkers = null;
             }
         }
+    }
+
+    private record PersistedItem(String base64Data, int amount) {
+    }
+
+    private record PersistedMeta(int unlockedSlots, int capacity, String vacuumFuelMaterial, int vacuumCharge,
+            int storedExp, String trustedPlayersJson) {
     }
 }
 

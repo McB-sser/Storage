@@ -84,19 +84,27 @@ public class AutoFillListener implements Listener {
             int toTake = Math.min(available, Math.max(1, settings.getWithdrawAmount()));
             toTake = Math.min(toTake, mat.getMaxStackSize());
 
-            ItemStack result = new ItemStack(mat, toTake);
+            int removed = plugin.getLagerManager().takeMaterialFromLager(player.getUniqueId(), mat, toTake);
+            if (removed <= 0) {
+                continue;
+            }
+            ItemStack result = new ItemStack(mat, removed);
             Map<Integer, ItemStack> leftovers = player.getInventory().addItem(result);
 
             int leftoverAmount = 0;
             for (ItemStack leftover : leftovers.values()) {
                 leftoverAmount += leftover.getAmount();
             }
-            int inserted = toTake - leftoverAmount;
+            int inserted = removed - leftoverAmount;
 
             if (inserted > 0) {
-                lager.removeByMaterial(mat, inserted);
-                plugin.getLagerManager().saveLager(player.getUniqueId());
+                if (leftoverAmount > 0) {
+                    plugin.getLagerManager().addItemToLager(player.getUniqueId(), null,
+                            new ItemStack(mat, leftoverAmount));
+                }
                 player.sendMessage("Autom. Nachf\u00fcll-Logik: " + inserted + "x " + mat.name() + " entnommen.");
+            } else {
+                plugin.getLagerManager().addItemToLager(player.getUniqueId(), null, result);
             }
         }
     }

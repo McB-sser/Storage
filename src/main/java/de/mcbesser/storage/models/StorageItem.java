@@ -10,10 +10,13 @@ import java.util.Base64;
 public class StorageItem {
     private String base64Data;
     private int amount;
+    private transient ItemStack cachedItem;
+    private transient String cachedMaterial;
 
     public StorageItem(ItemStack item) {
         this.base64Data = itemToBase64(item);
         this.amount = item.getAmount();
+        cacheItem(item);
     }
 
     public StorageItem(String base64Data, int amount) {
@@ -22,16 +25,22 @@ public class StorageItem {
     }
 
     public ItemStack toItemStack() {
-        ItemStack item = itemFromBase64(base64Data);
-        if (item != null) {
-            item.setAmount(1); // Set to 1 so isSimilar works correctly, amount is handled separately
+        if (cachedItem == null) {
+            ItemStack decoded = itemFromBase64(base64Data);
+            if (decoded == null) {
+                return null;
+            }
+            cacheItem(decoded);
         }
-        return item;
+        return cachedItem.clone();
     }
 
     public String getMaterial() {
-        ItemStack item = toItemStack();
-        return (item != null) ? item.getType().name() : "AIR";
+        if (cachedMaterial == null) {
+            ItemStack item = toItemStack();
+            cachedMaterial = item != null ? item.getType().name() : "AIR";
+        }
+        return cachedMaterial;
     }
 
     public int getAmount() {
@@ -52,6 +61,12 @@ public class StorageItem {
 
     private String itemToBase64(ItemStack item) {
         return Base64.getEncoder().encodeToString(item.serializeAsBytes());
+    }
+
+    private void cacheItem(ItemStack item) {
+        cachedItem = item.clone();
+        cachedItem.setAmount(1); // Amount is tracked separately by this storage entry.
+        cachedMaterial = cachedItem.getType().name();
     }
 
     private ItemStack itemFromBase64(String data) {

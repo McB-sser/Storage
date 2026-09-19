@@ -54,19 +54,20 @@ public class ExpStorageView extends AbstractMenu {
                         player.sendMessage(Component.text("Du hast keine XP zum Einlagern.", NamedTextColor.YELLOW));
                         return;
                     }
-                    lager.addStoredExp(current);
-                    plugin.getLagerManager().saveLager(player.getUniqueId());
+                    if (!plugin.getLagerManager().addStoredExperience(player.getUniqueId(), current)) {
+                        player.sendMessage(Component.text("EXP konnte nicht sicher gespeichert werden.", NamedTextColor.RED));
+                        return;
+                    }
                     setPlayerTotalExperience(player, 0);
                     player.sendMessage(Component.text(current + " XP global eingelagert.", NamedTextColor.GREEN));
                     setMenuItems(player);
                 } else if (clickType == ClickType.RIGHT || clickType == ClickType.SHIFT_RIGHT) {
                     int requested = clickType == ClickType.SHIFT_RIGHT ? lager.getStoredExp() : 100;
-                    int taken = lager.takeStoredExp(requested);
+                    int taken = plugin.getLagerManager().takeStoredExperience(player.getUniqueId(), requested);
                     if (taken <= 0) {
                         player.sendMessage(Component.text("Kein XP im Speicher.", NamedTextColor.YELLOW));
                         return;
                     }
-                    plugin.getLagerManager().saveLager(player.getUniqueId());
                     dropExperience(player, taken);
                     player.sendMessage(Component.text(taken + " XP (global) als Orbs ausgegeben.", NamedTextColor.GREEN));
                     setMenuItems(player);

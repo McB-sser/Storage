@@ -94,8 +94,14 @@ public class UpgradeMenu extends AbstractMenu {
                     player.sendMessage(Component.text("Du brauchst 1x Endertruhe.", NamedTextColor.RED));
                     return;
                 }
+                int previousSlots = lager.getUnlockedSlots();
                 boolean changed = lager.upgradeSlot();
-                plugin.getLagerManager().saveLager(storageOwner);
+                if (!plugin.getLagerManager().saveLager(storageOwner)) {
+                    lager.setUnlockedSlots(previousSlots);
+                    refundMaterial(player, Material.ENDER_CHEST, 1);
+                    player.sendMessage(Component.text("Upgrade konnte nicht sicher gespeichert werden.", NamedTextColor.RED));
+                    return;
+                }
                 if (changed) {
                     player.sendMessage(Component.text("Slots freigeschaltet (global). Neu: " + lager.getUnlockedSlots(),
                             NamedTextColor.GREEN));
@@ -110,8 +116,14 @@ public class UpgradeMenu extends AbstractMenu {
                     player.sendMessage(Component.text("Du brauchst 1x Truhe.", NamedTextColor.RED));
                     return;
                 }
+                int previousCapacity = lager.getCapacity();
                 lager.upgradeCapacity();
-                plugin.getLagerManager().saveLager(storageOwner);
+                if (!plugin.getLagerManager().saveLager(storageOwner)) {
+                    lager.setCapacity(previousCapacity);
+                    refundMaterial(player, Material.CHEST, 1);
+                    player.sendMessage(Component.text("Upgrade konnte nicht sicher gespeichert werden.", NamedTextColor.RED));
+                    return;
+                }
                 player.sendMessage(Component.text("Kapazit\u00e4t (global) erh\u00f6ht auf " + lager.getCapacity(),
                         NamedTextColor.GREEN));
                 setMenuItems(player);
@@ -150,6 +162,12 @@ public class UpgradeMenu extends AbstractMenu {
             }
         }
         return false;
+    }
+
+    private void refundMaterial(Player player, Material material, int amount) {
+        for (ItemStack overflow : player.getInventory().addItem(new ItemStack(material, amount)).values()) {
+            player.getWorld().dropItemNaturally(player.getLocation(), overflow);
+        }
     }
 
     private ItemStack createSimpleItem(Material material, String name) {

@@ -271,13 +271,10 @@ public class VacuumListener implements org.bukkit.event.Listener {
 
         ItemStack toStore = drop.clone();
         toStore.setAmount(Math.min(drop.getAmount(), charge));
-        int added = plugin.getLagerManager().addItemToLager(active.ownerUuid(), active.shulkerId(), toStore);
+        int added = plugin.getLagerManager().addVacuumItemToLager(active.ownerUuid(), toStore);
         if (added <= 0) {
             return;
         }
-
-        lager.takeVacuumCharge(added);
-        plugin.getLagerManager().saveLager(active.ownerUuid());
 
         int remaining = drop.getAmount() - added;
         if (remaining <= 0) {

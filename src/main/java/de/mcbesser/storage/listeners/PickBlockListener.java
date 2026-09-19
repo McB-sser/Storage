@@ -67,12 +67,10 @@ public class PickBlockListener implements Listener {
         }
 
         int amount = Math.min(available, targetMaterial.getMaxStackSize());
-        int removed = lager.removeByMaterial(targetMaterial, amount);
+        int removed = plugin.getLagerManager().takeMaterialFromLager(storageOwner, targetMaterial, amount);
         if (removed <= 0) {
             return;
         }
-
-        plugin.getLagerManager().saveLager(storageOwner);
 
         ItemStack give = new ItemStack(targetMaterial, removed);
         Map<Integer, ItemStack> overflow = player.getInventory().addItem(give);

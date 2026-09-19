@@ -268,16 +268,29 @@ public class QuickSlotsView extends AbstractMenu {
                         player.sendMessage(Component.text("Dieses Item konnte nicht geladen werden.", NamedTextColor.RED));
                         return;
                     }
-                    result.setAmount(amountToTake);
-
+                    amountToTake = Math.min(amountToTake, getInsertableAmount(player.getInventory(), result));
+                    if (amountToTake <= 0) {
+                        player.sendMessage(Component.text("Inventar ist voll!", NamedTextColor.RED));
+                        return;
+                    }
+                    int removed = plugin.getLagerManager().takeItemFromLager(storageOwner, result, amountToTake);
+                    if (removed <= 0) {
+                        player.sendMessage(Component.text("Lager konnte nicht sicher gespeichert werden.", NamedTextColor.RED));
+                        return;
+                    }
+                    result.setAmount(removed);
                     java.util.Map<Integer, ItemStack> overflow = player.getInventory().addItem(result);
                     int notInserted = overflow.values().stream().mapToInt(ItemStack::getAmount).sum();
-                    int inserted = amountToTake - notInserted;
+                    int inserted = removed - notInserted;
                     if (inserted > 0) {
-                        lager.removeItem(result, inserted);
-                        plugin.getLagerManager().saveLager(storageOwner);
+                        if (notInserted > 0) {
+                            ItemStack rollback = result.clone();
+                            rollback.setAmount(notInserted);
+                            plugin.getLagerManager().addItemToLager(storageOwner, shulkerId, rollback);
+                        }
                         setMenuItems(player);
                     } else {
+                        plugin.getLagerManager().addItemToLager(storageOwner, shulkerId, result);
                         player.sendMessage(Component.text("Inventar ist voll!", NamedTextColor.RED));
                     }
                 } else {
@@ -349,8 +362,10 @@ public class QuickSlotsView extends AbstractMenu {
                         player.sendMessage(Component.text("Du hast keine XP zum Einlagern.", NamedTextColor.YELLOW));
                         return;
                     }
-                    lager.addStoredExp(current);
-                    plugin.getLagerManager().saveLager(storageOwner);
+                    if (!plugin.getLagerManager().addStoredExperience(storageOwner, current)) {
+                        player.sendMessage(Component.text("EXP konnte nicht sicher gespeichert werden.", NamedTextColor.RED));
+                        return;
+                    }
                     setPlayerTotalExperience(player, 0);
                     player.sendMessage(Component.text(current + " XP eingelagert.", NamedTextColor.GREEN));
                     setMenuItems(player);
@@ -359,12 +374,11 @@ public class QuickSlotsView extends AbstractMenu {
 
                 if (clickType == ClickType.RIGHT || clickType == ClickType.SHIFT_RIGHT) {
                     int requested = clickType == ClickType.SHIFT_RIGHT ? lager.getStoredExp() : 100;
-                    int taken = lager.takeStoredExp(requested);
+                    int taken = plugin.getLagerManager().takeStoredExperience(storageOwner, requested);
                     if (taken <= 0) {
                         player.sendMessage(Component.text("Kein XP im Speicher.", NamedTextColor.YELLOW));
                         return;
                     }
-                    plugin.getLagerManager().saveLager(storageOwner);
                     dropExperience(player, taken);
                     player.sendMessage(Component.text(taken + " XP als Orbs ausgegeben.", NamedTextColor.GREEN));
                     setMenuItems(player);
